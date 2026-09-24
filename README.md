@@ -2,6 +2,8 @@
 
 A small offline canvas toy. Draw with a crayon; the wax thickens and starts to drip two seconds after you let go. Clear the paper and start over.
 
+[Try it online](https://crayon-melt.vercel.app/).
+
 ## Run
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
