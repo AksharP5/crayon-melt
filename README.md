@@ -1,4 +1,4 @@
-# Meltdown
+# Crayon melt
 
 A small offline canvas toy. Draw with a crayon; the wax thickens and starts to drip two seconds after you let go. Clear the paper and start over.
 
@@ -6,7 +6,7 @@ A small offline canvas toy. Draw with a crayon; the wax thickens and starts to d
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
 
-Mouse, pen, and touch input use pointer events. Choose a color below the paper and use **Clear paper** to reset it.
+Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper and use **Clear** to reset it.
 
 ## Physics knobs
 

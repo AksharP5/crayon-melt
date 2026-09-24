@@ -9,10 +9,8 @@ const PHYSICS = {
 };
 
 const canvas = document.querySelector('#drawing');
-const paper = document.querySelector('.paper-wrap');
 const status = document.querySelector('#status');
 const clearButton = document.querySelector('#clear');
-const cursor = document.querySelector('#cursor');
 const colors = [...document.querySelectorAll('.crayon')];
 const ctx = canvas.getContext('2d');
 const pigment = document.createElement('canvas');
@@ -104,7 +102,7 @@ function resize() {
   render(performance.now());
 }
 
-function addDrip(stroke, point, distance) {
+function addDrip(stroke, point) {
   const index = stroke.drips.length;
   const seed = stroke.id * 19 + index * 17;
   stroke.drips.push({
@@ -113,7 +111,6 @@ function addDrip(stroke, point, distance) {
     length: .45 + hash(seed + 3) * .65,
     width: 3.5 + hash(seed + 4) * 4.5,
     bend: (hash(seed + 5) - .5) * 17,
-    distance,
   });
 }
 
@@ -126,7 +123,7 @@ function addPoint(stroke, point) {
     drawFreshSegment(previous, point, stroke.color, stroke.points.length);
     if (stroke.travel - stroke.lastDripAt >= PHYSICS.dripSpacing) {
       stroke.lastDripAt = stroke.travel;
-      addDrip(stroke, point, stroke.travel);
+      addDrip(stroke, point);
     }
   } else {
     stamp(point, stroke.color, 0);
@@ -201,8 +198,18 @@ function render(now) {
   for (const stroke of strokes) {
     if (stroke !== currentStroke) drawDrips(stroke, now - stroke.finishedAt);
   }
-  status.textContent = !strokes.length ? 'READY TO DRAW' : melting ? 'WAX IN MOTION' : warming ? 'WARMING UP' : 'MELTED';
-  paper.classList.toggle('melting', melting);
+  if (currentStroke) {
+    const { x, y } = pointToPixels(currentStroke.points.at(-1));
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f6efdf';
+    ctx.fill();
+    ctx.strokeStyle = currentStroke.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  const nextStatus = !strokes.length ? 'READY TO DRAW' : melting ? 'WAX IN MOTION' : warming ? 'WARMING UP' : 'MELTED';
+  if (status.textContent !== nextStatus) status.textContent = nextStatus;
 }
 
 function tick(now) {
@@ -225,19 +232,9 @@ function scheduleMelt() {
   else if (next.length) wakeTimer = setTimeout(() => { frame = requestAnimationFrame(tick); }, Math.max(0, Math.min(...next)));
 }
 
-function moveCursor(event) {
-  if (event.pointerType === 'touch') return;
-  const bounds = canvas.getBoundingClientRect();
-  cursor.style.transform = `translate(${event.clientX - bounds.left}px, ${event.clientY - bounds.top}px)`;
-  cursor.classList.add('visible');
-}
-canvas.addEventListener('pointerenter', moveCursor);
-canvas.addEventListener('pointerleave', () => cursor.classList.remove('visible'));
-
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0) return;
   canvas.setPointerCapture(event.pointerId);
-  cursor.classList.add('pressed');
   currentStroke = {
     id: strokes.length + performance.now(), color: selectedColor,
     points: [], drips: [], travel: 0, lastDripAt: -PHYSICS.dripSpacing * .3,
@@ -248,16 +245,14 @@ canvas.addEventListener('pointerdown', event => {
 });
 
 canvas.addEventListener('pointermove', event => {
-  moveCursor(event);
   if (!currentStroke) return;
   for (const sample of event.getCoalescedEvents?.() ?? [event]) addPoint(currentStroke, unitPoint(sample));
 });
 
 function finishStroke() {
   if (!currentStroke) return;
-  cursor.classList.remove('pressed');
   currentStroke.finishedAt = performance.now();
-  if (!currentStroke.drips.length) addDrip(currentStroke, currentStroke.points[0], 0);
+  if (!currentStroke.drips.length) addDrip(currentStroke, currentStroke.points[0]);
   currentStroke = null;
   render(performance.now());
   scheduleMelt();
@@ -268,7 +263,6 @@ canvas.addEventListener('lostpointercapture', finishStroke);
 
 colors.forEach(button => button.addEventListener('click', () => {
   selectedColor = button.dataset.color;
-  cursor.style.setProperty('--cursor-color', selectedColor);
   colors.forEach(color => {
     const active = color === button;
     color.classList.toggle('selected', active);
