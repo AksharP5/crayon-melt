@@ -26,4 +26,4 @@ Wax marks combine a translucent core with deterministic grain flakes. After the 
 
 ## Demo
 
-[`demo/play-session.mp4`](demo/play-session.mp4) is a full browser play session showing drawing, the melt, clearing, and drawing again.
+[`demo/play-session.mp4`](demo/play-session.mp4) is one continuous browser play session with original audio timed to drawing, melting, clearing, and drawing again.

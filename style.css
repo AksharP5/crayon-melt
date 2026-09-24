@@ -28,16 +28,6 @@ canvas {
   touch-action: none;
 }
 
-.hint {
-  position: absolute;
-  top: 23px;
-  left: 30px;
-  margin: 0;
-  color: #8c7c6b;
-  font: italic 17px Georgia, serif;
-  pointer-events: none;
-}
-
 .clear {
   position: absolute;
   top: 20px;
@@ -91,7 +81,6 @@ button:focus-visible { outline: 2px solid #52473d; outline-offset: 5px; }
 }
 
 @media (max-width: 600px) {
-  .hint { top: 19px; left: 18px; font-size: 14px; }
   .clear { top: 14px; right: 18px; }
   .palette { bottom: 21px; gap: 14px; }
 }
