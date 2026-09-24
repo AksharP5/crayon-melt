@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#292426" />
+    <title>Meltdown — a little crayon experiment</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="masthead">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div>
+            <h1>meltdown<span>.</span></h1>
+            <p>A little crayon experiment</p>
+          </div>
+        </div>
+        <div class="instruction"><span class="instruction-line"></span> Draw something. Give it a moment.</div>
+      </header>
+
+      <section class="paper-wrap" aria-label="Drawing area">
+        <div class="paper-topline">
+          <span>WAX STUDY <b>№ 001</b></span>
+          <span class="paper-status"><span class="status-light"></span><span id="status">READY TO DRAW</span></span>
+        </div>
+        <canvas id="drawing" aria-label="Draw with a crayon; strokes melt after two seconds"></canvas>
+        <div id="cursor" class="cursor" aria-hidden="true"></div>
+        <div class="paper-footer" aria-hidden="true">
+          <span>DRAW <b>→</b> WAIT <b>→</b> MELT</span>
+          <span>✳ &nbsp; MADE TO GET MESSY</span>
+        </div>
+      </section>
+
+      <footer class="toolbar">
+        <div class="palette" role="group" aria-label="Crayon color">
+          <span class="palette-label">PICK A CRAYON</span>
+          <button class="crayon selected" type="button" data-color="#ed654f" aria-label="Coral" aria-pressed="true" style="--crayon:#ed654f"><span></span></button>
+          <button class="crayon" type="button" data-color="#e8a646" aria-label="Marigold" aria-pressed="false" style="--crayon:#e8a646"><span></span></button>
+          <button class="crayon" type="button" data-color="#7a9e74" aria-label="Sage" aria-pressed="false" style="--crayon:#7a9e74"><span></span></button>
+          <button class="crayon" type="button" data-color="#69a9b5" aria-label="Pool blue" aria-pressed="false" style="--crayon:#69a9b5"><span></span></button>
+          <button class="crayon" type="button" data-color="#a68dbb" aria-label="Lilac" aria-pressed="false" style="--crayon:#a68dbb"><span></span></button>
+          <button class="crayon" type="button" data-color="#524b54" aria-label="Charcoal" aria-pressed="false" style="--crayon:#524b54"><span></span></button>
+        </div>
+        <button id="clear" class="clear" type="button"><span aria-hidden="true">↺</span> CLEAR PAPER</button>
+      </footer>
+      <p class="aside">Every line has a little gravity.</p>
+    </main>
+  </body>
+</html>
