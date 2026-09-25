@@ -8,11 +8,11 @@ A small offline canvas toy. Draw with a crayon; wax starts to thicken and drip a
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
 
-Mouse, pen, and touch input use pointer events. Choose one of 11 colors, use **Erase marks** or **Erase drips** for the corresponding part of a drawing, or use **Clear** to reset everything. The circle and crosshair under the pointer show the selected tool's size and center. The Size slider adjusts the selected tool: crayons range from 5–32 px, eraser radii from 5–40 px. Each tool remembers its size, and existing strokes keep their width.
+Mouse, pen, and touch input use pointer events. Choose one of 11 swatches or open the color wheel swatch to pick any color. Use **Erase marks** or **Erase drips** for the corresponding part of a drawing, or use **Clear** to reset everything. The circle and crosshair under the pointer show the selected tool's size and center. The Size slider adjusts the selected tool: crayons range from 5–32 canvas units, eraser radii from 5–40 canvas units. Each tool remembers its size, and existing strokes keep their width. The on-screen brush circle scales with zoom.
 
 The Melt slider sets drip amount for the next stroke. At 0% the wax thickens without drips; at 50% it uses the defaults below; at 100% drips can reach twice as far and appear twice as often. Finished strokes keep the amount chosen when they began.
 
-Select **Move canvas** and drag to pan with a mouse or touch. On desktop, trackpad scrolling, Space-drag, and middle-drag also pan without switching tools. Marks stay at their world positions as you move around.
+Scroll over the canvas to zoom around the pointer, or use the **−** and **+** buttons to zoom around the screen center. Zoom ranges from 25% to 400%. Select **Move canvas** and drag to pan with a mouse or touch. On desktop, Space-drag and middle-drag also pan without switching tools. Marks stay at their world positions as you move around.
 
 ## Physics knobs
 
@@ -29,7 +29,7 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 | `massGain` | `9` | Extra width as the mark warms. |
 | `eraserRadius` | `16` | Default radius of each eraser brush. |
 
-Wax marks combine a translucent core with deterministic grain flakes. Older parts of a stroke gain mass while newer parts stay fresh; each drip uses the age of its own mark, accelerates under gravity, bends slightly, and stops at its own length or the paper edge. Erasing a mark before it melts prevents drips from starting there. The drip eraser removes only the pixels it covers and holds the touched drip at that length. The canvas redraws while wax moves or the user draws or erases.
+Wax marks combine a translucent core with deterministic grain flakes. Older parts of a stroke gain mass while newer parts stay fresh; each drip uses the age of its own mark, accelerates under gravity, bends slightly, and stops at its own length. Erasing a mark before it melts prevents drips from starting there. The drip eraser removes only the pixels it covers and holds the touched drip at that length. The canvas redraws while wax moves or the user draws or erases.
 
 The visible canvas is capped at three million backing pixels; finished marks use small per-stroke rasters instead of one giant world bitmap. Offscreen strokes are skipped during drawing, and animation stops when wax settles.
 
@@ -39,7 +39,7 @@ The visible canvas is capped at three million backing pixels; finished marks use
 
 ## Contributing
 
-Open an issue for bugs or small feature ideas. For code changes, keep the app dependency-free, run `node --check script.js`, and test drawing, both erasers, Melt levels, and panning in a browser at desktop and phone widths.
+Open an issue for bugs or small feature ideas. For code changes, keep the app dependency-free, run `node --check script.js`, and test drawing, both erasers, Melt levels, zoom, and panning in a browser at desktop and phone widths.
 
 ## License
 

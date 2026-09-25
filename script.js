@@ -14,8 +14,13 @@ const canvas = document.querySelector('#drawing');
 const status = document.querySelector('#status');
 const clearButton = document.querySelector('#clear');
 const colors = [...document.querySelectorAll('.crayon')];
+const customColor = document.querySelector('#custom-color');
+const customColorButton = customColor.closest('.custom-color');
 const eraserButtons = [...document.querySelectorAll('[data-tool]')];
 const moveButton = document.querySelector('#move');
+const zoomOutButton = document.querySelector('#zoom-out');
+const zoomInButton = document.querySelector('#zoom-in');
+const zoomLevel = document.querySelector('#zoom-level');
 const brushPreview = document.querySelector('#brush-preview');
 const sizeControl = document.querySelector('.size-control');
 const sizeSlider = document.querySelector('#size');
@@ -33,7 +38,7 @@ let lastErasePoint = null;
 let activePointerId = null;
 let panPoint = null;
 let spaceDown = false;
-const camera = { x: 0, y: 0 };
+const camera = { x: 0, y: 0, zoom: 1 };
 let strokes = [];
 let currentStroke = null;
 let width = 0;
@@ -44,8 +49,8 @@ let wakeTimer = 0;
 function unitPoint(event) {
   const bounds = canvas.getBoundingClientRect();
   return {
-    x: camera.x + Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)),
-    y: camera.y + Math.max(0, Math.min(bounds.height, event.clientY - bounds.top)),
+    x: camera.x + Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)) / camera.zoom,
+    y: camera.y + Math.max(0, Math.min(bounds.height, event.clientY - bounds.top)) / camera.zoom,
   };
 }
 
@@ -55,7 +60,21 @@ function hash(value) {
 }
 
 function pointToScreen(point) {
-  return { x: point.x - camera.x, y: point.y - camera.y };
+  return { x: (point.x - camera.x) * camera.zoom, y: (point.y - camera.y) * camera.zoom };
+}
+
+function setZoom(nextZoom, screenX, screenY) {
+  if (activePointerId !== null) return;
+  const zoom = Math.max(.25, Math.min(4, nextZoom));
+  if (zoom === camera.zoom) return;
+  camera.x += screenX / camera.zoom - screenX / zoom;
+  camera.y += screenY / camera.zoom - screenY / zoom;
+  camera.zoom = zoom;
+  zoomLevel.value = `${Math.round(zoom * 100)}%`;
+  zoomOutButton.disabled = zoom <= .25;
+  zoomInButton.disabled = zoom >= 4;
+  updateSizeControl();
+  queueRender();
 }
 
 function stamp(point, stroke, index) {
@@ -66,10 +85,10 @@ function stamp(point, stroke, index) {
   for (let flake = 0; flake < 11; flake++) {
     const seed = index * 31 + flake * 7;
     const angle = hash(seed + 1) * Math.PI * 2;
-    const radius = Math.sqrt(hash(seed + 2)) * stroke.width * .53;
-    const size = .7 + hash(seed + 3) * 2.2;
+    const radius = Math.sqrt(hash(seed + 2)) * stroke.width * .53 * camera.zoom;
+    const size = (.7 + hash(seed + 3) * 2.2) * camera.zoom;
     pigmentCtx.globalAlpha = .18 + hash(seed + 4) * .52;
-    pigmentCtx.fillRect(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, size, .7 + hash(seed + 5) * 1.4);
+    pigmentCtx.fillRect(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, size, (.7 + hash(seed + 5) * 1.4) * camera.zoom);
   }
   pigmentCtx.globalAlpha = 1;
 }
@@ -82,7 +101,7 @@ function drawFreshSegment(a, b, stroke, startIndex) {
 
   pigmentCtx.strokeStyle = stroke.color;
   pigmentCtx.lineCap = 'round';
-  pigmentCtx.lineWidth = stroke.width * .82;
+  pigmentCtx.lineWidth = stroke.width * .82 * camera.zoom;
   pigmentCtx.globalAlpha = .18;
   pigmentCtx.beginPath();
   pigmentCtx.moveTo(first.x, first.y);
@@ -97,7 +116,7 @@ function drawFreshSegment(a, b, stroke, startIndex) {
 
 function cachePigment(stroke) {
   const margin = stroke.width + 4;
-  const ratio = canvas.width / width;
+  const ratio = canvas.width / width * camera.zoom;
   const left = Math.max(0, Math.floor((stroke.bounds.minX - camera.x - margin) * ratio));
   const top = Math.max(0, Math.floor((stroke.bounds.minY - camera.y - margin) * ratio));
   const right = Math.min(pigment.width, Math.ceil((stroke.bounds.maxX - camera.x + margin) * ratio));
@@ -182,7 +201,7 @@ function addPoint(stroke, point) {
   }
 
   const distance = Math.hypot(point.x - previous.x, point.y - previous.y);
-  if (distance < 1.5) return;
+  if (distance < 1.5 / camera.zoom) return;
   const steps = Math.ceil(distance / 8);
   const createdAt = performance.now();
   const meltStart = createdAt + PHYSICS.meltDelayMs;
@@ -298,7 +317,7 @@ function makeDripRaster(stroke, drip, x, y, length) {
   const top = Math.floor(y - drip.width * 2 - 2);
   const rasterWidth = Math.ceil(Math.abs(bend) + drip.width * 4 + 4);
   const rasterHeight = Math.ceil(length + drip.width * 4 + 4);
-  const ratio = canvas.width / width;
+  const ratio = Math.min(2, Math.max(1, canvas.width / width * camera.zoom));
   const wax = document.createElement('canvas');
   wax.width = Math.ceil(rasterWidth * ratio);
   wax.height = Math.ceil(rasterHeight * ratio);
@@ -328,8 +347,8 @@ function drawDrips(stroke, now) {
 function strokeVisible(stroke) {
   const margin = stroke.width + 20;
   const dripReach = PHYSICS.maxDripLength * stroke.dripScale * 1.1;
-  return stroke.bounds.maxX + margin >= camera.x && stroke.bounds.minX - margin <= camera.x + width &&
-    stroke.bounds.maxY + dripReach + margin >= camera.y && stroke.bounds.minY - margin <= camera.y + height;
+  return stroke.bounds.maxX + margin >= camera.x && stroke.bounds.minX - margin <= camera.x + width / camera.zoom &&
+    stroke.bounds.maxY + dripReach + margin >= camera.y && stroke.bounds.minY - margin <= camera.y + height / camera.zoom;
 }
 
 function render(now) {
@@ -338,6 +357,7 @@ function render(now) {
   let warming = false;
   const visible = [];
   ctx.save();
+  ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
   for (const stroke of strokes) {
     const elapsed = now - stroke.startedAt;
@@ -358,6 +378,7 @@ function render(now) {
   ctx.restore();
   ctx.drawImage(pigment, 0, 0, width, height);
   ctx.save();
+  ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
   for (const stroke of visible) drawDrips(stroke, now);
   ctx.restore();
@@ -508,8 +529,8 @@ canvas.addEventListener('pointerdown', event => {
 canvas.addEventListener('pointermove', event => {
   if (activePointerId !== null && event.pointerId !== activePointerId) return;
   if (panPoint) {
-    camera.x -= event.clientX - panPoint.x;
-    camera.y -= event.clientY - panPoint.y;
+    camera.x -= (event.clientX - panPoint.x) / camera.zoom;
+    camera.y -= (event.clientY - panPoint.y) / camera.zoom;
     panPoint = { x: event.clientX, y: event.clientY };
     queueRender();
     return;
@@ -556,10 +577,13 @@ canvas.addEventListener('pointerleave', () => { brushPreview.style.visibility = 
 canvas.addEventListener('auxclick', event => { if (event.button === 1) event.preventDefault(); });
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
-  camera.x += event.deltaX;
-  camera.y += event.deltaY;
-  queueRender();
+  const bounds = canvas.getBoundingClientRect();
+  const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1);
+  setZoom(camera.zoom * Math.exp(-delta * .0015), event.clientX - bounds.left, event.clientY - bounds.top);
 }, { passive: false });
+
+zoomOutButton.addEventListener('click', () => setZoom(camera.zoom / 1.25, width / 2, height / 2));
+zoomInButton.addEventListener('click', () => setZoom(camera.zoom * 1.25, width / 2, height / 2));
 
 window.addEventListener('keydown', event => {
   if (event.code !== 'Space' || ['BUTTON', 'INPUT'].includes(document.activeElement.tagName)) return;
@@ -574,8 +598,8 @@ window.addEventListener('keyup', event => {
   if (tool !== 'move') canvas.closest('.paper').classList.remove('moving');
 });
 
-colors.forEach(button => button.addEventListener('click', () => {
-  selectedColor = button.dataset.color;
+function selectCrayon(color, selectedButton) {
+  selectedColor = color;
   tool = 'crayon';
   eraserButtons.forEach(eraser => {
     eraser.classList.remove('selected');
@@ -586,12 +610,20 @@ colors.forEach(button => button.addEventListener('click', () => {
   canvas.closest('.paper').classList.remove('moving');
   brushPreview.style.visibility = 'hidden';
   colors.forEach(color => {
-    const active = color === button;
+    const active = color === selectedButton;
     color.classList.toggle('selected', active);
     color.setAttribute('aria-pressed', String(active));
   });
+  customColorButton.classList.toggle('selected', selectedButton === customColorButton);
   updateSizeControl();
-}));
+}
+
+colors.forEach(button => button.addEventListener('click', () => selectCrayon(button.dataset.color, button)));
+customColor.addEventListener('click', () => selectCrayon(customColor.value, customColorButton));
+customColor.addEventListener('input', () => {
+  customColorButton.style.setProperty('--custom-color', customColor.value);
+  selectCrayon(customColor.value, customColorButton);
+});
 
 eraserButtons.forEach(button => button.addEventListener('click', () => {
   tool = button.dataset.tool;
@@ -607,6 +639,7 @@ eraserButtons.forEach(button => button.addEventListener('click', () => {
     color.classList.remove('selected');
     color.setAttribute('aria-pressed', 'false');
   });
+  customColorButton.classList.remove('selected');
   updateSizeControl();
 }));
 
@@ -616,6 +649,7 @@ moveButton.addEventListener('click', () => {
   moveButton.setAttribute('aria-pressed', 'true');
   canvas.closest('.paper').classList.add('moving');
   colors.forEach(button => { button.classList.remove('selected'); button.setAttribute('aria-pressed', 'false'); });
+  customColorButton.classList.remove('selected');
   eraserButtons.forEach(button => { button.classList.remove('selected'); button.setAttribute('aria-pressed', 'false'); });
   brushPreview.style.visibility = 'hidden';
   updateSizeControl();
@@ -632,8 +666,8 @@ function updateSizeControl() {
   sizeSlider.setAttribute('aria-label', erasing ? `${tool === 'mark' ? 'Mark' : 'Drip'} eraser size` : 'Crayon size');
   sizeControl.style.setProperty('--tool-color', erasing ? '#8b6e67' : selectedColor);
   const diameter = erasing ? eraserRadii[tool] * 2 : (currentStroke?.width ?? crayonWidth);
-  brushPreview.style.width = `${diameter}px`;
-  brushPreview.style.height = `${diameter}px`;
+  brushPreview.style.width = `${diameter * camera.zoom}px`;
+  brushPreview.style.height = `${diameter * camera.zoom}px`;
   brushPreview.style.setProperty('--preview-color', erasing ? '#766c63' : selectedColor);
 }
 

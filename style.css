@@ -30,6 +30,29 @@ canvas {
 .paper.moving canvas { cursor: grab; }
 .paper.panning canvas { cursor: grabbing; }
 
+.zoom-controls {
+  position: absolute;
+  top: 20px;
+  left: 29px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #716357;
+}
+.zoom-controls button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+.zoom-controls button:hover { color: #cf6852; }
+.zoom-controls button:disabled { opacity: .4; cursor: default; }
+.zoom-controls output { width: 38px; text-align: center; font-size: 11px; font-weight: bold; }
+
 .clear {
   position: absolute;
   top: 20px;
@@ -100,6 +123,28 @@ canvas {
 }
 .crayon:hover { transform: scale(1.16); }
 .crayon.selected { outline: 1px solid #66584a; outline-offset: 4px; }
+.custom-color {
+  position: relative;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  border-radius: 50%;
+  background: conic-gradient(#e54b50, #eda842, #e5dc50, #5cac6a, #4caec3, #6275bd, #bb69b3, #e54b50);
+  cursor: pointer;
+}
+.custom-color::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid #fff8e5;
+  border-radius: 50%;
+  background: var(--custom-color, #b94cc9);
+  pointer-events: none;
+}
+.custom-color:hover { transform: scale(1.16); }
+.custom-color.selected { outline: 1px solid #66584a; outline-offset: 4px; }
+.custom-color:focus-within { outline: 2px solid #52473d; outline-offset: 5px; }
+.custom-color input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .eraser {
   min-height: 27px;
   padding: 3px 0;
@@ -139,11 +184,13 @@ button:focus-visible { outline: 2px solid #52473d; outline-offset: 5px; }
 }
 
 @media (max-width: 600px) {
+  .zoom-controls { top: 14px; left: 18px; }
   .clear { top: 14px; right: 18px; }
   .controls { bottom: 20px; gap: 11px; }
   .sliders { flex-direction: column; gap: 8px; }
   .tool-row { flex-direction: column-reverse; gap: 12px; }
-  .palette { gap: 7px; }
-  .crayon { width: 21px; height: 21px; }
+  .palette { gap: 5px; }
+  .crayon { width: 20px; height: 20px; }
+  .custom-color { width: 24px; height: 24px; }
   .erasers { gap: 15px; padding-left: 0; border-left: 0; }
 }

@@ -11,6 +11,11 @@
   <body>
     <main class="paper" aria-label="Crayon drawing area">
       <canvas id="drawing" tabindex="0" aria-label="Draw with a crayon; strokes melt after two seconds. Select Move canvas to pan."></canvas>
+      <div class="zoom-controls" role="group" aria-label="Canvas zoom">
+        <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+        <output id="zoom-level">100%</output>
+        <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+      </div>
       <button id="clear" class="clear" type="button">Clear</button>
       <div class="controls">
         <div class="sliders">
@@ -30,6 +35,9 @@
             <button class="crayon" type="button" data-color="#657fb7" aria-label="Cobalt" aria-pressed="false" style="--crayon:#657fb7"></button>
             <button class="crayon" type="button" data-color="#a68dbb" aria-label="Lilac" aria-pressed="false" style="--crayon:#a68dbb"></button>
             <button class="crayon" type="button" data-color="#524b54" aria-label="Charcoal" aria-pressed="false" style="--crayon:#524b54"></button>
+            <label class="custom-color" title="Custom color">
+              <input id="custom-color" type="color" value="#b94cc9" aria-label="Custom crayon color" />
+            </label>
           </div>
           <div class="erasers" role="group" aria-label="Canvas tools">
             <button class="eraser" type="button" data-tool="mark" aria-pressed="false">Erase marks</button>
