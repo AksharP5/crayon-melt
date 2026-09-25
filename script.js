@@ -14,8 +14,17 @@ const canvas = document.querySelector('#drawing');
 const status = document.querySelector('#status');
 const clearButton = document.querySelector('#clear');
 const colors = [...document.querySelectorAll('.crayon')];
-const customColor = document.querySelector('#custom-color');
-const customColorButton = customColor.closest('.custom-color');
+const customColorButton = document.querySelector('#custom-color');
+const colorPicker = document.querySelector('.color-picker');
+const colorMenu = document.querySelector('#color-menu');
+const colorValue = document.querySelector('#color-value');
+const hueWheel = document.querySelector('#hue-wheel');
+const hueMarker = document.querySelector('#hue-marker');
+const shadeField = document.querySelector('#shade-field');
+const shadeMarker = document.querySelector('#shade-marker');
+const eraserButton = document.querySelector('#eraser');
+const eraserPicker = document.querySelector('.eraser-picker');
+const eraserMenu = document.querySelector('#eraser-menu');
 const eraserButtons = [...document.querySelectorAll('[data-tool]')];
 const moveButton = document.querySelector('#move');
 const zoomOutButton = document.querySelector('#zoom-out');
@@ -33,7 +42,10 @@ const pigmentCtx = pigment.getContext('2d');
 let selectedColor = colors[0].dataset.color;
 let tool = 'crayon';
 let crayonWidth = PHYSICS.waxWidth;
-const eraserRadii = { mark: PHYSICS.eraserRadius, drip: PHYSICS.eraserRadius };
+const eraserRadii = { all: PHYSICS.eraserRadius, mark: PHYSICS.eraserRadius, drip: PHYSICS.eraserRadius };
+let customHue = 320;
+let customSaturation = .4;
+let customValue = .68;
 let lastErasePoint = null;
 let activePointerId = null;
 let panPoint = null;
@@ -421,6 +433,8 @@ function eraseSegment(a, b) {
   const start = a;
   const end = b;
   const radius = eraserRadii[tool];
+  const eraseMarks = tool === 'all' || tool === 'mark';
+  const eraseDrips = tool === 'all' || tool === 'drip';
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
@@ -432,10 +446,10 @@ function eraseSegment(a, b) {
   const now = performance.now();
   for (const stroke of strokes) {
     const side = radius + stroke.width + 20;
-    const below = tool === 'drip' ? PHYSICS.maxDripLength * stroke.dripScale * 1.1 : 0;
+    const below = eraseDrips ? PHYSICS.maxDripLength * stroke.dripScale * 1.1 : 0;
     if (Math.max(start.x, end.x) + side < stroke.bounds.minX || Math.min(start.x, end.x) - side > stroke.bounds.maxX ||
         Math.max(start.y, end.y) + side < stroke.bounds.minY || Math.min(start.y, end.y) - side - below > stroke.bounds.maxY) continue;
-    if (tool === 'mark') {
+    if (eraseMarks) {
       if (stroke.raster) eraseRaster(stroke.raster, { a, b, radius });
       for (const point of stroke.points) {
         if (point.erased) continue;
@@ -448,8 +462,8 @@ function eraseSegment(a, b) {
       for (const drip of stroke.drips) {
         if (drip.point.erased && dripLength(drip, now) <= 0) drip.erased = true;
       }
-      continue;
     }
+    if (!eraseDrips) continue;
     for (const drip of stroke.drips) {
       if (drip.erased) continue;
       const { x, y } = drip.point;
@@ -475,7 +489,7 @@ function eraseSegment(a, b) {
       }
     }
   }
-  if (tool === 'mark') strokes = strokes.filter(stroke => stroke.visiblePoints > 0 || stroke.drips.some(drip => !drip.erased));
+  if (eraseMarks) strokes = strokes.filter(stroke => stroke.visiblePoints > 0 || stroke.drips.some(drip => !drip.erased));
 }
 
 function showBrushPreview(event) {
@@ -586,7 +600,7 @@ zoomOutButton.addEventListener('click', () => setZoom(camera.zoom / 1.25, width 
 zoomInButton.addEventListener('click', () => setZoom(camera.zoom * 1.25, width / 2, height / 2));
 
 window.addEventListener('keydown', event => {
-  if (event.code !== 'Space' || ['BUTTON', 'INPUT'].includes(document.activeElement.tagName)) return;
+  if (event.code !== 'Space' || ['BUTTON', 'INPUT'].includes(document.activeElement.tagName) || document.activeElement.closest('.controls')) return;
   event.preventDefault();
   spaceDown = true;
   canvas.closest('.paper').classList.add('moving');
@@ -598,13 +612,24 @@ window.addEventListener('keyup', event => {
   if (tool !== 'move') canvas.closest('.paper').classList.remove('moving');
 });
 
+function closeMenus() {
+  colorMenu.hidden = true;
+  eraserMenu.hidden = true;
+  customColorButton.setAttribute('aria-expanded', 'false');
+  eraserButton.setAttribute('aria-expanded', 'false');
+}
+
+function clearColorSelection() {
+  colors.forEach(button => { button.classList.remove('selected'); button.setAttribute('aria-pressed', 'false'); });
+  customColorButton.classList.remove('selected');
+  customColorButton.setAttribute('aria-pressed', 'false');
+}
+
 function selectCrayon(color, selectedButton) {
   selectedColor = color;
   tool = 'crayon';
-  eraserButtons.forEach(eraser => {
-    eraser.classList.remove('selected');
-    eraser.setAttribute('aria-pressed', 'false');
-  });
+  eraserButton.classList.remove('selected');
+  eraserButton.setAttribute('aria-pressed', 'false');
   moveButton.classList.remove('selected');
   moveButton.setAttribute('aria-pressed', 'false');
   canvas.closest('.paper').classList.remove('moving');
@@ -614,45 +639,145 @@ function selectCrayon(color, selectedButton) {
     color.classList.toggle('selected', active);
     color.setAttribute('aria-pressed', String(active));
   });
-  customColorButton.classList.toggle('selected', selectedButton === customColorButton);
+  const customSelected = selectedButton === customColorButton;
+  customColorButton.classList.toggle('selected', customSelected);
+  customColorButton.setAttribute('aria-pressed', String(customSelected));
   updateSizeControl();
 }
 
-colors.forEach(button => button.addEventListener('click', () => selectCrayon(button.dataset.color, button)));
-customColor.addEventListener('click', () => selectCrayon(customColor.value, customColorButton));
-customColor.addEventListener('input', () => {
-  customColorButton.style.setProperty('--custom-color', customColor.value);
-  selectCrayon(customColor.value, customColorButton);
-});
+colors.forEach(button => button.addEventListener('click', () => {
+  closeMenus();
+  selectCrayon(button.dataset.color, button);
+}));
 
 eraserButtons.forEach(button => button.addEventListener('click', () => {
   tool = button.dataset.tool;
+  closeMenus();
   moveButton.classList.remove('selected');
   moveButton.setAttribute('aria-pressed', 'false');
   canvas.closest('.paper').classList.remove('moving');
+  eraserButton.classList.add('selected');
+  eraserButton.setAttribute('aria-pressed', 'true');
+  eraserButton.setAttribute('aria-label', `Eraser: ${button.textContent}`);
+  eraserButton.title = `Eraser: ${button.textContent}`;
   eraserButtons.forEach(eraser => {
     const active = eraser === button;
-    eraser.classList.toggle('selected', active);
     eraser.setAttribute('aria-pressed', String(active));
   });
-  colors.forEach(color => {
-    color.classList.remove('selected');
-    color.setAttribute('aria-pressed', 'false');
-  });
-  customColorButton.classList.remove('selected');
+  clearColorSelection();
+  brushPreview.style.visibility = 'hidden';
   updateSizeControl();
+  eraserButton.focus({ preventScroll: true });
 }));
 
+eraserButton.addEventListener('click', () => {
+  const opening = eraserMenu.hidden;
+  closeMenus();
+  eraserMenu.hidden = !opening;
+  eraserButton.setAttribute('aria-expanded', String(opening));
+});
+
 moveButton.addEventListener('click', () => {
+  closeMenus();
   tool = 'move';
   moveButton.classList.add('selected');
   moveButton.setAttribute('aria-pressed', 'true');
+  eraserButton.classList.remove('selected');
+  eraserButton.setAttribute('aria-pressed', 'false');
   canvas.closest('.paper').classList.add('moving');
-  colors.forEach(button => { button.classList.remove('selected'); button.setAttribute('aria-pressed', 'false'); });
-  customColorButton.classList.remove('selected');
-  eraserButtons.forEach(button => { button.classList.remove('selected'); button.setAttribute('aria-pressed', 'false'); });
+  clearColorSelection();
   brushPreview.style.visibility = 'hidden';
   updateSizeControl();
+});
+
+function customHex() {
+  const hue = customHue / 60;
+  const chroma = customValue * customSaturation;
+  const second = chroma * (1 - Math.abs(hue % 2 - 1));
+  const match = customValue - chroma;
+  const channels = hue < 1 ? [chroma, second, 0] : hue < 2 ? [second, chroma, 0] : hue < 3 ? [0, chroma, second] :
+    hue < 4 ? [0, second, chroma] : hue < 5 ? [second, 0, chroma] : [chroma, 0, second];
+  return '#' + channels.map(value => Math.round((value + match) * 255).toString(16).padStart(2, '0')).join('');
+}
+
+function updateCustomColor(select = true) {
+  const color = customHex();
+  customColorButton.style.setProperty('--custom-color', color);
+  hueWheel.style.setProperty('--custom-color', color);
+  shadeField.style.setProperty('--hue', customHue);
+  colorValue.value = color.toUpperCase();
+  hueWheel.setAttribute('aria-valuenow', String(Math.round(customHue) % 360));
+  const angle = customHue * Math.PI / 180;
+  hueMarker.style.left = `${58 + Math.sin(angle) * 50}px`;
+  hueMarker.style.top = `${58 - Math.cos(angle) * 50}px`;
+  shadeMarker.style.left = `${customSaturation * 100}%`;
+  shadeMarker.style.top = `${(1 - customValue) * 100}%`;
+  if (select) selectCrayon(color, customColorButton);
+}
+
+customColorButton.addEventListener('click', () => {
+  const opening = colorMenu.hidden;
+  closeMenus();
+  selectCrayon(customHex(), customColorButton);
+  colorMenu.hidden = !opening;
+  customColorButton.setAttribute('aria-expanded', String(opening));
+});
+
+function bindColorDrag(element, update, accepts = () => true) {
+  element.addEventListener('pointerdown', event => {
+    if (!accepts(event)) return;
+    event.preventDefault();
+    element.setPointerCapture(event.pointerId);
+    update(event);
+  });
+  element.addEventListener('pointermove', event => {
+    if (element.hasPointerCapture(event.pointerId)) update(event);
+  });
+}
+
+bindColorDrag(hueWheel, event => {
+  const bounds = hueWheel.getBoundingClientRect();
+  const dx = event.clientX - bounds.left - bounds.width / 2;
+  const dy = event.clientY - bounds.top - bounds.height / 2;
+  customHue = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+  updateCustomColor();
+}, event => {
+  const bounds = hueWheel.getBoundingClientRect();
+  return Math.hypot(event.clientX - bounds.left - bounds.width / 2, event.clientY - bounds.top - bounds.height / 2) >= 38;
+});
+
+bindColorDrag(shadeField, event => {
+  const bounds = shadeField.getBoundingClientRect();
+  customSaturation = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+  customValue = 1 - Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
+  updateCustomColor();
+});
+
+hueWheel.addEventListener('keydown', event => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  customHue = (customHue + (['ArrowRight', 'ArrowUp'].includes(event.key) ? 5 : -5) + 360) % 360;
+  updateCustomColor();
+});
+
+shadeField.addEventListener('keydown', event => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  if (event.key === 'ArrowLeft') customSaturation = Math.max(0, customSaturation - .05);
+  if (event.key === 'ArrowRight') customSaturation = Math.min(1, customSaturation + .05);
+  if (event.key === 'ArrowUp') customValue = Math.min(1, customValue + .05);
+  if (event.key === 'ArrowDown') customValue = Math.max(0, customValue - .05);
+  updateCustomColor();
+});
+
+document.addEventListener('pointerdown', event => {
+  if (!colorPicker.contains(event.target) && !eraserPicker.contains(event.target)) closeMenus();
+});
+window.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  const openButton = !colorMenu.hidden ? customColorButton : !eraserMenu.hidden ? eraserButton : null;
+  closeMenus();
+  openButton?.focus();
 });
 
 function updateSizeControl() {
@@ -663,7 +788,8 @@ function updateSizeControl() {
   sizeSlider.min = 5;
   sizeSlider.max = erasing ? 40 : 32;
   sizeSlider.value = erasing ? eraserRadii[tool] : crayonWidth;
-  sizeSlider.setAttribute('aria-label', erasing ? `${tool === 'mark' ? 'Mark' : 'Drip'} eraser size` : 'Crayon size');
+  const eraserName = tool === 'all' ? 'General' : tool === 'mark' ? 'Mark' : 'Drip';
+  sizeSlider.setAttribute('aria-label', erasing ? `${eraserName} eraser size` : 'Crayon size');
   sizeControl.style.setProperty('--tool-color', erasing ? '#8b6e67' : selectedColor);
   const diameter = erasing ? eraserRadii[tool] * 2 : (currentStroke?.width ?? crayonWidth);
   brushPreview.style.width = `${diameter * camera.zoom}px`;
@@ -694,5 +820,6 @@ clearButton.addEventListener('click', () => {
 });
 
 resize();
+updateCustomColor(false);
 updateSizeControl();
 new ResizeObserver(resize).observe(canvas);

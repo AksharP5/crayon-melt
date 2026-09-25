@@ -35,14 +35,25 @@
             <button class="crayon" type="button" data-color="#657fb7" aria-label="Cobalt" aria-pressed="false" style="--crayon:#657fb7"></button>
             <button class="crayon" type="button" data-color="#a68dbb" aria-label="Lilac" aria-pressed="false" style="--crayon:#a68dbb"></button>
             <button class="crayon" type="button" data-color="#524b54" aria-label="Charcoal" aria-pressed="false" style="--crayon:#524b54"></button>
-            <label class="custom-color" title="Custom color">
-              <input id="custom-color" type="color" value="#b94cc9" aria-label="Custom crayon color" />
-            </label>
+            <div class="color-picker">
+              <button id="custom-color" class="custom-color" type="button" aria-label="Custom color" aria-pressed="false" aria-expanded="false" aria-controls="color-menu" title="Custom color"><span aria-hidden="true">+</span></button>
+              <div id="color-menu" class="color-menu" hidden>
+                <div class="color-menu-heading">Custom color <output id="color-value"></output></div>
+                <div id="hue-wheel" class="hue-wheel" role="slider" tabindex="0" aria-label="Hue" aria-valuemin="0" aria-valuemax="359"><span id="hue-marker" aria-hidden="true"></span></div>
+                <div id="shade-field" class="shade-field" tabindex="0" aria-label="Saturation and brightness"><span id="shade-marker" aria-hidden="true"></span></div>
+              </div>
+            </div>
           </div>
-          <div class="erasers" role="group" aria-label="Canvas tools">
-            <button class="eraser" type="button" data-tool="mark" aria-pressed="false">Erase marks</button>
-            <button class="eraser" type="button" data-tool="drip" aria-pressed="false">Erase drips</button>
-            <button id="move" class="eraser" type="button" aria-pressed="false">Move canvas</button>
+          <div class="tool-actions" role="group" aria-label="Canvas tools">
+            <div class="eraser-picker">
+              <button id="eraser" class="tool-button" type="button" aria-label="Choose eraser" aria-pressed="false" aria-expanded="false" aria-controls="eraser-menu" title="Choose eraser"><span class="eraser-icon" aria-hidden="true"></span></button>
+              <div id="eraser-menu" class="eraser-menu" role="group" aria-label="Eraser mode" hidden>
+                <button type="button" data-tool="all" aria-pressed="false">General</button>
+                <button type="button" data-tool="mark" aria-pressed="false">Marks only</button>
+                <button type="button" data-tool="drip" aria-pressed="false">Drips only</button>
+              </div>
+            </div>
+            <button id="move" class="tool-button" type="button" aria-label="Move canvas" aria-pressed="false" title="Move canvas"><span class="move-icon" aria-hidden="true"></span></button>
           </div>
         </div>
       </div>

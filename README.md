@@ -8,11 +8,11 @@ A small offline canvas toy. Draw with a crayon; wax starts to thicken and drip a
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
 
-Mouse, pen, and touch input use pointer events. Choose one of 11 swatches or open the color wheel swatch to pick any color. Use **Erase marks** or **Erase drips** for the corresponding part of a drawing, or use **Clear** to reset everything. The circle and crosshair under the pointer show the selected tool's size and center. The Size slider adjusts the selected tool: crayons range from 5–32 canvas units, eraser radii from 5–40 canvas units. Each tool remembers its size, and existing strokes keep their width. The on-screen brush circle scales with zoom.
+Mouse, pen, and touch input use pointer events. Choose one of 11 swatches or press the **+** swatch to pick a custom color with the hue wheel and shade field. Click the eraser icon to choose **General**, **Marks only**, or **Drips only**. General erases both kinds of wax only where the brush passes. The cursor icon moves the canvas; **Clear** resets it. The circle and crosshair under the pointer show the selected tool's size and center. The Size slider adjusts the selected tool: crayons range from 5–32 canvas units, eraser radii from 5–40 canvas units. Each tool remembers its size, and existing strokes keep their width. The on-screen brush circle scales with zoom.
 
 The Melt slider sets drip amount for the next stroke. At 0% the wax thickens without drips; at 50% it uses the defaults below; at 100% drips can reach twice as far and appear twice as often. Finished strokes keep the amount chosen when they began.
 
-Scroll over the canvas to zoom around the pointer, or use the **−** and **+** buttons to zoom around the screen center. Zoom ranges from 25% to 400%. Select **Move canvas** and drag to pan with a mouse or touch. On desktop, Space-drag and middle-drag also pan without switching tools. Marks stay at their world positions as you move around.
+Scroll over the canvas to zoom around the pointer, or use the **−** and **+** buttons at the top left to zoom around the screen center. Zoom ranges from 25% to 400%. Select the cursor icon and drag to pan with a mouse or touch. On desktop, Space-drag and middle-drag also pan without switching tools. Marks stay at their world positions as you move around.
 
 ## Physics knobs
 
@@ -35,11 +35,11 @@ The visible canvas is capped at three million backing pixels; finished marks use
 
 ## Demo
 
-[`demo/play-session.mp4`](demo/play-session.mp4) is one continuous browser play session showing drawing while wax melts, both erasers, Melt and Size controls, moving the canvas, clearing, and drawing again. Its soundtrack uses the first 36.875 seconds of ["Sounds Good" by Michael Ramir C.](https://mixkit.co/free-stock-music/funk/) under the [Mixkit Stock Music Free License](https://mixkit.co/license/modal/musicFree/).
+[`demo/play-session.mp4`](demo/play-session.mp4) is one continuous browser play session showing drawing while wax melts, mark and drip erasing, Melt and Size controls, moving the canvas, clearing, and drawing again. Its soundtrack uses the first 36.875 seconds of ["Sounds Good" by Michael Ramir C.](https://mixkit.co/free-stock-music/funk/) under the [Mixkit Stock Music Free License](https://mixkit.co/license/modal/musicFree/).
 
 ## Contributing
 
-Open an issue for bugs or small feature ideas. For code changes, keep the app dependency-free, run `node --check script.js`, and test drawing, both erasers, Melt levels, zoom, and panning in a browser at desktop and phone widths.
+Open an issue for bugs or small feature ideas. For code changes, keep the app dependency-free, run `node --check script.js`, and test drawing, all three eraser modes, custom colors, Melt levels, zoom, and panning in a browser at desktop and phone widths.
 
 ## License
 
