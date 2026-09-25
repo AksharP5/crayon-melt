@@ -6,22 +6,28 @@ const PHYSICS = {
   dripSpacing: 34,      // pixels along a stroke
   waxWidth: 13,         // fresh crayon width in pixels
   massGain: 9,          // extra width when warm
+  eraserRadius: 30,     // pixels
 };
+const MAX_CANVAS_PIXELS = 3_000_000;
 
 const canvas = document.querySelector('#drawing');
 const status = document.querySelector('#status');
 const clearButton = document.querySelector('#clear');
 const colors = [...document.querySelectorAll('.crayon')];
+const eraserButton = document.querySelector('#eraser');
+const eraserPreview = document.querySelector('#eraser-preview');
 const ctx = canvas.getContext('2d');
 const pigment = document.createElement('canvas');
 const pigmentCtx = pigment.getContext('2d');
 
 let selectedColor = colors[0].dataset.color;
+let erasing = false;
+let lastErasePoint = null;
+let activePointerId = null;
 let strokes = [];
 let currentStroke = null;
 let width = 0;
 let height = 0;
-let pixelRatio = 1;
 let frame = 0;
 let wakeTimer = 0;
 
@@ -79,26 +85,27 @@ function drawFreshSegment(a, b, color, startIndex) {
   }
 }
 
-function redrawPigment() {
-  pigmentCtx.clearRect(0, 0, width, height);
-  for (const stroke of strokes) {
-    if (stroke.points.length === 1) stamp(stroke.points[0], stroke.color, 0);
-    for (let i = 1; i < stroke.points.length; i++) {
-      drawFreshSegment(stroke.points[i - 1], stroke.points[i], stroke.color, i);
-    }
-  }
-}
-
 function resize() {
   const bounds = canvas.getBoundingClientRect();
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(MAX_CANVAS_PIXELS / (bounds.width * bounds.height)));
+  const backingWidth = Math.round(bounds.width * pixelRatio);
+  const backingHeight = Math.round(bounds.height * pixelRatio);
+  if (width === bounds.width && height === bounds.height && canvas.width === backingWidth && canvas.height === backingHeight) return;
+
+  let previousPigment;
+  if (width && height) {
+    previousPigment = document.createElement('canvas');
+    previousPigment.width = pigment.width;
+    previousPigment.height = pigment.height;
+    previousPigment.getContext('2d').drawImage(pigment, 0, 0);
+  }
   width = bounds.width;
   height = bounds.height;
-  pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = pigment.width = Math.round(width * pixelRatio);
-  canvas.height = pigment.height = Math.round(height * pixelRatio);
+  canvas.width = pigment.width = backingWidth;
+  canvas.height = pigment.height = backingHeight;
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   pigmentCtx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  redrawPigment();
+  if (previousPigment) pigmentCtx.drawImage(previousPigment, 0, 0, width, height);
   render(performance.now());
 }
 
@@ -116,29 +123,46 @@ function addDrip(stroke, point) {
 
 function addPoint(stroke, point) {
   const previous = stroke.points.at(-1);
-  if (previous) {
-    const distance = Math.hypot((point.x - previous.x) * width, (point.y - previous.y) * height);
-    if (distance < 1.5) return;
-    stroke.travel += distance;
-    drawFreshSegment(previous, point, stroke.color, stroke.points.length);
+  if (!previous) {
+    stamp(point, stroke.color, 0);
+    stroke.points.push(point);
+    stroke.visiblePoints++;
+    return;
+  }
+
+  const distance = Math.hypot((point.x - previous.x) * width, (point.y - previous.y) * height);
+  if (distance < 1.5) return;
+  const steps = Math.ceil(distance / 8);
+  for (let step = 1; step <= steps; step++) {
+    const next = {
+      x: previous.x + (point.x - previous.x) * step / steps,
+      y: previous.y + (point.y - previous.y) * step / steps,
+    };
+    const last = stroke.points.at(-1);
+    stroke.travel += distance / steps;
+    drawFreshSegment(last, next, stroke.color, stroke.points.length);
     if (stroke.travel - stroke.lastDripAt >= PHYSICS.dripSpacing) {
       stroke.lastDripAt = stroke.travel;
-      addDrip(stroke, point);
+      addDrip(stroke, next);
     }
-  } else {
-    stamp(point, stroke.color, 0);
+    stroke.points.push(next);
+    stroke.visiblePoints++;
   }
-  stroke.points.push(point);
-  render(performance.now());
 }
 
 function drawMass(stroke, warmth) {
   if (stroke.points.length < 2) return;
   ctx.beginPath();
-  stroke.points.forEach((point, index) => {
+  let connected = false;
+  stroke.points.forEach(point => {
+    if (point.erased) {
+      connected = false;
+      return;
+    }
     const { x, y } = pointToPixels(point);
-    if (index === 0) ctx.moveTo(x, y);
+    if (!connected) ctx.moveTo(x, y + warmth * 2.3);
     else ctx.lineTo(x, y + warmth * 2.3);
+    connected = true;
   });
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -151,6 +175,7 @@ function drawMass(stroke, warmth) {
 
 function drawDrips(stroke, elapsed) {
   for (const drip of stroke.drips) {
+    if (drip.erased || drip.point.erased) continue;
     const seconds = Math.max(0, (elapsed - PHYSICS.meltDelayMs - drip.delay) / 1000);
     if (seconds === 0) continue;
     const { x, y } = pointToPixels(drip.point);
@@ -215,7 +240,7 @@ function render(now) {
 function tick(now) {
   frame = 0;
   render(now);
-  if (strokes.some(stroke => stroke !== currentStroke && now - stroke.finishedAt < PHYSICS.meltDelayMs + PHYSICS.meltDurationMs)) {
+  if (strokes.some(stroke => stroke !== currentStroke && now - stroke.finishedAt >= PHYSICS.meltDelayMs && now - stroke.finishedAt < PHYSICS.meltDelayMs + PHYSICS.meltDurationMs)) {
     frame = requestAnimationFrame(tick);
   }
 }
@@ -223,6 +248,7 @@ function tick(now) {
 function scheduleMelt() {
   clearTimeout(wakeTimer);
   if (frame) cancelAnimationFrame(frame);
+  frame = 0;
   const now = performance.now();
   const next = strokes
     .filter(stroke => stroke !== currentStroke && now - stroke.finishedAt < PHYSICS.meltDelayMs)
@@ -232,24 +258,116 @@ function scheduleMelt() {
   else if (next.length) wakeTimer = setTimeout(() => { frame = requestAnimationFrame(tick); }, Math.max(0, Math.min(...next)));
 }
 
+function queueRender() {
+  if (!frame) frame = requestAnimationFrame(tick);
+}
+
+function eraseSegment(a, b) {
+  const start = pointToPixels(a);
+  const end = pointToPixels(b);
+  const radius = PHYSICS.eraserRadius;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const within = (x, y, reach) => {
+    const t = lengthSquared ? Math.max(0, Math.min(1, ((x - start.x) * dx + (y - start.y) * dy) / lengthSquared)) : 0;
+    return (x - start.x - t * dx) ** 2 + (y - start.y - t * dy) ** 2 <= reach ** 2;
+  };
+
+  pigmentCtx.save();
+  pigmentCtx.globalCompositeOperation = 'destination-out';
+  pigmentCtx.lineWidth = radius * 2;
+  pigmentCtx.lineCap = 'round';
+  pigmentCtx.beginPath();
+  pigmentCtx.moveTo(start.x, start.y);
+  pigmentCtx.lineTo(end.x, end.y);
+  pigmentCtx.stroke();
+  pigmentCtx.beginPath();
+  pigmentCtx.arc(end.x, end.y, radius, 0, Math.PI * 2);
+  pigmentCtx.fill();
+  pigmentCtx.restore();
+
+  const now = performance.now();
+  for (const stroke of strokes) {
+    for (const point of stroke.points) {
+      if (point.erased) continue;
+      const { x, y } = pointToPixels(point);
+      if (within(x, y, radius)) {
+        point.erased = true;
+        stroke.visiblePoints--;
+      }
+    }
+    for (const drip of stroke.drips) {
+      if (drip.erased || drip.point.erased) continue;
+      const seconds = Math.max(0, (now - stroke.finishedAt - PHYSICS.meltDelayMs - drip.delay) / 1000);
+      const { x, y } = pointToPixels(drip.point);
+      const length = Math.min(PHYSICS.maxDripLength * drip.length, .5 * PHYSICS.gravity * seconds * seconds, height - y - 15);
+      for (let offset = 0; offset <= length; offset += 10) {
+        const bend = drip.bend * Math.min(1, offset / 90);
+        if (within(x + bend, y + offset, radius + drip.width / 2)) {
+          drip.erased = true;
+          break;
+        }
+      }
+    }
+  }
+  const remaining = strokes.filter(stroke => stroke.visiblePoints > 0);
+  if (remaining.length !== strokes.length) strokes = remaining;
+}
+
+function showEraser(event) {
+  const bounds = canvas.getBoundingClientRect();
+  eraserPreview.style.left = `${event.clientX - bounds.left}px`;
+  eraserPreview.style.top = `${event.clientY - bounds.top}px`;
+  eraserPreview.style.visibility = 'visible';
+}
+
 canvas.addEventListener('pointerdown', event => {
-  if (event.button !== 0) return;
+  if (event.button !== 0 || activePointerId !== null) return;
+  activePointerId = event.pointerId;
   canvas.setPointerCapture(event.pointerId);
+  if (erasing) {
+    lastErasePoint = unitPoint(event);
+    eraseSegment(lastErasePoint, lastErasePoint);
+    showEraser(event);
+    queueRender();
+    return;
+  }
   currentStroke = {
     id: strokes.length + performance.now(), color: selectedColor,
-    points: [], drips: [], travel: 0, lastDripAt: -PHYSICS.dripSpacing * .3,
+    points: [], drips: [], visiblePoints: 0, travel: 0, lastDripAt: -PHYSICS.dripSpacing * .3,
     finishedAt: Infinity,
   };
   strokes.push(currentStroke);
   addPoint(currentStroke, unitPoint(event));
+  queueRender();
 });
 
 canvas.addEventListener('pointermove', event => {
-  if (!currentStroke) return;
-  for (const sample of event.getCoalescedEvents?.() ?? [event]) addPoint(currentStroke, unitPoint(sample));
+  if (activePointerId !== null && event.pointerId !== activePointerId) return;
+  if (erasing) showEraser(event);
+  if (!currentStroke && !lastErasePoint) return;
+  const samples = event.getCoalescedEvents?.();
+  for (const sample of samples?.length ? samples : [event]) {
+    const point = unitPoint(sample);
+    if (lastErasePoint) {
+      eraseSegment(lastErasePoint, point);
+      lastErasePoint = point;
+    } else {
+      addPoint(currentStroke, point);
+    }
+  }
+  queueRender();
 });
 
-function finishStroke() {
+function finishStroke(event) {
+  if (event.pointerId !== activePointerId) return;
+  activePointerId = null;
+  if (lastErasePoint) {
+    lastErasePoint = null;
+    render(performance.now());
+    return;
+  }
   if (!currentStroke) return;
   currentStroke.finishedAt = performance.now();
   if (!currentStroke.drips.length) addDrip(currentStroke, currentStroke.points[0]);
@@ -260,9 +378,14 @@ function finishStroke() {
 canvas.addEventListener('pointerup', finishStroke);
 canvas.addEventListener('pointercancel', finishStroke);
 canvas.addEventListener('lostpointercapture', finishStroke);
+canvas.addEventListener('pointerleave', () => { eraserPreview.style.visibility = 'hidden'; });
 
 colors.forEach(button => button.addEventListener('click', () => {
   selectedColor = button.dataset.color;
+  erasing = false;
+  eraserButton.classList.remove('selected');
+  eraserButton.setAttribute('aria-pressed', 'false');
+  eraserPreview.style.visibility = 'hidden';
   colors.forEach(color => {
     const active = color === button;
     color.classList.toggle('selected', active);
@@ -270,14 +393,27 @@ colors.forEach(button => button.addEventListener('click', () => {
   });
 }));
 
+eraserButton.addEventListener('click', () => {
+  erasing = true;
+  eraserButton.classList.add('selected');
+  eraserButton.setAttribute('aria-pressed', 'true');
+  colors.forEach(color => {
+    color.classList.remove('selected');
+    color.setAttribute('aria-pressed', 'false');
+  });
+});
+
 clearButton.addEventListener('click', () => {
   clearTimeout(wakeTimer);
   if (frame) cancelAnimationFrame(frame);
   frame = 0;
   strokes = [];
   currentStroke = null;
+  lastErasePoint = null;
+  activePointerId = null;
   pigmentCtx.clearRect(0, 0, width, height);
   render(performance.now());
 });
 
+resize();
 new ResizeObserver(resize).observe(canvas);

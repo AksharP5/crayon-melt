@@ -65,7 +65,36 @@ canvas {
   transition: transform .16s ease;
 }
 .crayon:hover { transform: scale(1.16); }
-.crayon.selected { outline: 1px solid #66584a; outline-offset: 4px; }
+.palette button.selected { outline: 1px solid #66584a; outline-offset: 4px; }
+.eraser {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.eraser span {
+  width: 16px;
+  height: 11px;
+  border: 1px solid #8b6e67;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #e9a99e 70%, #f1ddd0 70%);
+  transform: rotate(-35deg);
+}
+#eraser-preview {
+  position: absolute;
+  z-index: 1;
+  width: 60px;
+  height: 60px;
+  border: 1px solid #766c63;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  visibility: hidden;
+}
 button:focus-visible { outline: 2px solid #52473d; outline-offset: 5px; }
 
 .sr-only {

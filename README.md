@@ -8,7 +8,7 @@ A small offline canvas toy. Draw with a crayon; the wax thickens and starts to d
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
 
-Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper and use **Clear** to reset it.
+Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper, select the eraser to rub out part of a drawing, or use **Clear** to reset it.
 
 ## Physics knobs
 
@@ -23,8 +23,11 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 | `dripSpacing` | `34` | Distance along a stroke between drip anchors. |
 | `waxWidth` | `13` | Width of a fresh crayon mark. |
 | `massGain` | `9` | Extra width as the mark warms. |
+| `eraserRadius` | `30` | Radius of the eraser brush. |
 
-Wax marks combine a translucent core with deterministic grain flakes. After the delay, each finished stroke grows a thicker body; individual drips accelerate under gravity, bend slightly, and stop at their own length or the paper edge. The canvas redraws only while wax is moving or being drawn.
+Wax marks combine a translucent core with deterministic grain flakes. After the delay, each finished stroke grows a thicker body; individual drips accelerate under gravity, bend slightly, and stop at their own length or the paper edge. The canvas redraws while wax moves or the user draws or erases.
+
+The backing canvas is capped at three million pixels so large, high-density screens stay responsive.
 
 ## Demo
 
