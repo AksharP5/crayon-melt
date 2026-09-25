@@ -31,4 +31,4 @@ The backing canvas is capped at three million pixels so large, high-density scre
 
 ## Demo
 
-[`demo/play-session.mp4`](demo/play-session.mp4) is one continuous browser play session showing drawing, melting, clearing, and drawing again. Its soundtrack uses the first 34.875 seconds of [“Sounds Good” by Michael Ramir C.](https://mixkit.co/free-stock-music/funk/) under the [Mixkit Stock Music Free License](https://mixkit.co/license/modal/musicFree/).
+[`demo/play-session.mp4`](demo/play-session.mp4) is one continuous browser play session showing drawing while wax melts, partial erasing, clearing, resizing crayons, and drawing again. Its soundtrack uses the first 34.875 seconds of [“Sounds Good” by Michael Ramir C.](https://mixkit.co/free-stock-music/funk/) under the [Mixkit Stock Music Free License](https://mixkit.co/license/modal/musicFree/).
