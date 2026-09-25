@@ -12,7 +12,7 @@ Mouse, pen, and touch input use pointer events. Choose one of 11 swatches or pre
 
 The Melt slider sets drip amount for the next stroke. At 0% the wax thickens without drips; at 50% it uses the defaults below; at 100% drips can reach twice as far and appear twice as often. Finished strokes keep the amount chosen when they began.
 
-Scroll over the canvas to zoom around the pointer, or use the **−** and **+** buttons at the top left to zoom around the screen center. Zoom ranges from 25% to 400%. Select the cursor icon and drag to pan with a mouse or touch. On desktop, Space-drag and middle-drag also pan without switching tools. Marks stay at their world positions as you move around.
+Scroll over the canvas to zoom around the pointer, or use the **−** and **+** buttons at the top left to zoom around the screen center. Click the percentage between them to return to 100%. Zoom ranges from 25% to 400%. Select the cursor icon and drag to pan with a mouse or touch. On desktop, Space-drag and middle-drag also pan without switching tools. Marks stay at their world positions as you move around.
 
 ## Physics knobs
 

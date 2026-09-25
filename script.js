@@ -82,7 +82,7 @@ function setZoom(nextZoom, screenX, screenY) {
   camera.x += screenX / camera.zoom - screenX / zoom;
   camera.y += screenY / camera.zoom - screenY / zoom;
   camera.zoom = zoom;
-  zoomLevel.value = `${Math.round(zoom * 100)}%`;
+  zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
   zoomOutButton.disabled = zoom <= .25;
   zoomInButton.disabled = zoom >= 4;
   updateSizeControl();
@@ -598,6 +598,7 @@ canvas.addEventListener('wheel', event => {
 
 zoomOutButton.addEventListener('click', () => setZoom(camera.zoom / 1.25, width / 2, height / 2));
 zoomInButton.addEventListener('click', () => setZoom(camera.zoom * 1.25, width / 2, height / 2));
+zoomLevel.addEventListener('click', () => setZoom(1, width / 2, height / 2));
 
 window.addEventListener('keydown', event => {
   if (event.code !== 'Space' || ['BUTTON', 'INPUT'].includes(document.activeElement.tagName) || document.activeElement.closest('.controls')) return;
