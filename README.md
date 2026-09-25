@@ -19,7 +19,7 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 | `meltDelayMs` | `2000` | Pause after a mark is drawn before it softens. |
 | `gravity` | `58` | Downward acceleration of each drip, in px/s². |
 | `maxDripLength` | `175` | Maximum drip reach before the paper edge clamps it. |
-| `meltDurationMs` | `7800` | How long the canvas redraws while wax moves. |
+| `massWarmupMs` | `1100` | Time for an older mark to reach full thickness. |
 | `dripSpacing` | `34` | Distance along a stroke between drip anchors. |
 | `waxWidth` | `13` | Default width of a fresh crayon mark. |
 | `massGain` | `9` | Extra width as the mark warms. |
@@ -27,7 +27,7 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 
 Wax marks combine a translucent core with deterministic grain flakes. Older parts of a stroke gain mass while newer parts stay fresh; each drip uses the age of its own mark, accelerates under gravity, bends slightly, and stops at its own length or the paper edge. Erasing a drip removes only the touched section and holds its remaining wax at that length. The canvas redraws while wax moves or the user draws or erases.
 
-The backing canvas is capped at three million pixels so large, high-density screens stay responsive.
+The backing canvas is capped at three million pixels so large, high-density screens stay responsive. Animation stops when the wax reaches its final position.
 
 ## Demo
 

@@ -2,7 +2,7 @@ const PHYSICS = {
   meltDelayMs: 2000,
   gravity: 58,          // pixels per second squared
   maxDripLength: 175,  // pixels
-  meltDurationMs: 7800,
+  massWarmupMs: 1100,
   dripSpacing: 34,      // pixels along a stroke
   waxWidth: 13,         // fresh crayon width in pixels
   massGain: 9,          // extra width when warm
@@ -113,6 +113,14 @@ function resize() {
   render(performance.now());
 }
 
+function extendMeltWindow(stroke, start, end) {
+  // A held stroke can start moving again after its earlier wax has settled.
+  const expired = performance.now() >= stroke.meltEndAt;
+  if (expired) stroke.meltStartAt = start;
+  stroke.meltEndAt = Math.max(stroke.meltEndAt, end);
+  if (expired) scheduleMelt();
+}
+
 function addDrip(stroke, point) {
   const index = stroke.drips.length;
   const seed = stroke.id * 19 + index * 17;
@@ -126,9 +134,10 @@ function addDrip(stroke, point) {
   };
   stroke.drips.push(drip);
   const start = drip.createdAt + PHYSICS.meltDelayMs + drip.delay;
-  if (start > stroke.meltEndAt) stroke.meltStartAt = start;
-  stroke.meltEndAt = Math.max(stroke.meltEndAt, start + PHYSICS.meltDurationMs);
-  scheduleMelt();
+  const fallMs = PHYSICS.gravity > 0
+    ? Math.sqrt(2 * PHYSICS.maxDripLength * drip.length / PHYSICS.gravity) * 1000
+    : 0;
+  extendMeltWindow(stroke, start, start + fallMs);
 }
 
 function addPoint(stroke, point) {
@@ -146,6 +155,8 @@ function addPoint(stroke, point) {
   if (distance < 1.5) return;
   const steps = Math.ceil(distance / 8);
   const createdAt = performance.now();
+  const meltStart = createdAt + PHYSICS.meltDelayMs;
+  extendMeltWindow(stroke, meltStart, meltStart + PHYSICS.massWarmupMs);
   for (let step = 1; step <= steps; step++) {
     const next = {
       x: previous.x + (point.x - previous.x) * step / steps,
@@ -272,7 +283,7 @@ function render(now) {
     const elapsed = now - stroke.startedAt;
     if (stroke === currentStroke || elapsed < PHYSICS.meltDelayMs) warming = true;
     if (elapsed >= PHYSICS.meltDelayMs) {
-      const warmth = Math.min(1, (elapsed - PHYSICS.meltDelayMs) / 1100);
+      const warmth = Math.min(1, (elapsed - PHYSICS.meltDelayMs) / PHYSICS.massWarmupMs);
       drawMass(stroke, warmth, now - PHYSICS.meltDelayMs);
       melting ||= now >= stroke.meltStartAt && now < stroke.meltEndAt;
     }
@@ -411,11 +422,12 @@ canvas.addEventListener('pointerdown', event => {
   const now = performance.now();
   currentStroke = {
     id: strokes.length + now, color: selectedColor, width: crayonWidth, startedAt: now,
-    meltStartAt: now + PHYSICS.meltDelayMs, meltEndAt: now + PHYSICS.meltDelayMs + PHYSICS.meltDurationMs,
+    meltStartAt: now + PHYSICS.meltDelayMs, meltEndAt: now + PHYSICS.meltDelayMs + PHYSICS.massWarmupMs,
     points: [], drips: [], visiblePoints: 0, travel: 0, lastDripDistance: 0,
   };
   strokes.push(currentStroke);
   addPoint(currentStroke, unitPoint(event));
+  scheduleMelt();
   queueRender();
 });
 
