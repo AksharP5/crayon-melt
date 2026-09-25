@@ -43,6 +43,26 @@ canvas {
 }
 .clear:hover { color: #cf6852; }
 
+.size-control {
+  position: absolute;
+  bottom: 67px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+  color: #716357;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: .04em;
+}
+.size-control input {
+  width: 120px;
+  margin: 0;
+  accent-color: var(--tool-color, #ed654f);
+  cursor: pointer;
+}
+
 .palette {
   position: absolute;
   bottom: 23px;
@@ -111,5 +131,6 @@ button:focus-visible { outline: 2px solid #52473d; outline-offset: 5px; }
 
 @media (max-width: 600px) {
   .clear { top: 14px; right: 18px; }
+  .size-control { bottom: 65px; }
   .palette { bottom: 21px; gap: 14px; }
 }

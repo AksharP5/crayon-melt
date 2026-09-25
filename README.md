@@ -8,7 +8,7 @@ A small offline canvas toy. Draw with a crayon; the wax thickens and starts to d
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
 
-Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper, select the eraser to rub out part of a drawing, or use **Clear** to reset it.
+Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper, select the eraser to rub out part of a drawing, or use **Clear** to reset it. The Size slider adjusts the selected tool: crayons range from 5–32 px, eraser radius from 8–60 px. Each tool remembers its size, and existing strokes keep their width.
 
 ## Physics knobs
 
@@ -21,11 +21,11 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 | `maxDripLength` | `175` | Maximum drip reach before the paper edge clamps it. |
 | `meltDurationMs` | `7800` | How long the canvas redraws while wax moves. |
 | `dripSpacing` | `34` | Distance along a stroke between drip anchors. |
-| `waxWidth` | `13` | Width of a fresh crayon mark. |
+| `waxWidth` | `13` | Default width of a fresh crayon mark. |
 | `massGain` | `9` | Extra width as the mark warms. |
-| `eraserRadius` | `30` | Radius of the eraser brush. |
+| `eraserRadius` | `30` | Default radius of the eraser brush. |
 
-Wax marks combine a translucent core with deterministic grain flakes. After the delay, each finished stroke grows a thicker body; individual drips accelerate under gravity, bend slightly, and stop at their own length or the paper edge. The canvas redraws while wax moves or the user draws or erases.
+Wax marks combine a translucent core with deterministic grain flakes. After the delay, each finished stroke grows a thicker body; individual drips accelerate under gravity, bend slightly, and stop at their own length or the paper edge. Erasing a drip removes only the touched section and holds its remaining wax at that length. The canvas redraws while wax moves or the user draws or erases.
 
 The backing canvas is capped at three million pixels so large, high-density screens stay responsive.
 

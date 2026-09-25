@@ -16,12 +16,16 @@ const clearButton = document.querySelector('#clear');
 const colors = [...document.querySelectorAll('.crayon')];
 const eraserButton = document.querySelector('#eraser');
 const eraserPreview = document.querySelector('#eraser-preview');
+const sizeControl = document.querySelector('.size-control');
+const sizeSlider = document.querySelector('#size');
 const ctx = canvas.getContext('2d');
 const pigment = document.createElement('canvas');
 const pigmentCtx = pigment.getContext('2d');
 
 let selectedColor = colors[0].dataset.color;
 let erasing = false;
+let crayonWidth = PHYSICS.waxWidth;
+let eraserRadius = PHYSICS.eraserRadius;
 let lastErasePoint = null;
 let activePointerId = null;
 let strokes = [];
@@ -48,15 +52,15 @@ function pointToPixels(point) {
   return { x: point.x * width, y: point.y * height };
 }
 
-function stamp(point, color, index) {
+function stamp(point, stroke, index) {
   const { x, y } = pointToPixels(point);
-  pigmentCtx.fillStyle = color;
+  pigmentCtx.fillStyle = stroke.color;
 
   // Dense center with gaps and short irregular flakes at the edges.
   for (let flake = 0; flake < 11; flake++) {
     const seed = index * 31 + flake * 7;
     const angle = hash(seed + 1) * Math.PI * 2;
-    const radius = Math.sqrt(hash(seed + 2)) * PHYSICS.waxWidth * .53;
+    const radius = Math.sqrt(hash(seed + 2)) * stroke.width * .53;
     const size = .7 + hash(seed + 3) * 2.2;
     pigmentCtx.globalAlpha = .18 + hash(seed + 4) * .52;
     pigmentCtx.fillRect(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius, size, .7 + hash(seed + 5) * 1.4);
@@ -64,15 +68,15 @@ function stamp(point, color, index) {
   pigmentCtx.globalAlpha = 1;
 }
 
-function drawFreshSegment(a, b, color, startIndex) {
+function drawFreshSegment(a, b, stroke, startIndex) {
   const first = pointToPixels(a);
   const last = pointToPixels(b);
   const length = Math.hypot(last.x - first.x, last.y - first.y);
   const steps = Math.max(1, Math.ceil(length / 2.2));
 
-  pigmentCtx.strokeStyle = color;
+  pigmentCtx.strokeStyle = stroke.color;
   pigmentCtx.lineCap = 'round';
-  pigmentCtx.lineWidth = PHYSICS.waxWidth * .82;
+  pigmentCtx.lineWidth = stroke.width * .82;
   pigmentCtx.globalAlpha = .18;
   pigmentCtx.beginPath();
   pigmentCtx.moveTo(first.x, first.y);
@@ -81,7 +85,7 @@ function drawFreshSegment(a, b, color, startIndex) {
   pigmentCtx.globalAlpha = 1;
 
   for (let step = 0; step <= steps; step++) {
-    stamp({ x: a.x + (b.x - a.x) * step / steps, y: a.y + (b.y - a.y) * step / steps }, color, startIndex * 1000 + step);
+    stamp({ x: a.x + (b.x - a.x) * step / steps, y: a.y + (b.y - a.y) * step / steps }, stroke, startIndex * 1000 + step);
   }
 }
 
@@ -116,7 +120,7 @@ function addDrip(stroke, point) {
     point,
     delay: hash(seed + 2) * 1250,
     length: .45 + hash(seed + 3) * .65,
-    width: 3.5 + hash(seed + 4) * 4.5,
+    width: (3.5 + hash(seed + 4) * 4.5) * stroke.width / PHYSICS.waxWidth,
     bend: (hash(seed + 5) - .5) * 17,
   });
 }
@@ -124,7 +128,7 @@ function addDrip(stroke, point) {
 function addPoint(stroke, point) {
   const previous = stroke.points.at(-1);
   if (!previous) {
-    stamp(point, stroke.color, 0);
+    stamp(point, stroke, 0);
     stroke.points.push(point);
     stroke.visiblePoints++;
     return;
@@ -140,7 +144,7 @@ function addPoint(stroke, point) {
     };
     const last = stroke.points.at(-1);
     stroke.travel += distance / steps;
-    drawFreshSegment(last, next, stroke.color, stroke.points.length);
+    drawFreshSegment(last, next, stroke, stroke.points.length);
     if (stroke.travel - stroke.lastDripAt >= PHYSICS.dripSpacing) {
       stroke.lastDripAt = stroke.travel;
       addDrip(stroke, next);
@@ -151,7 +155,7 @@ function addPoint(stroke, point) {
 }
 
 function drawMass(stroke, warmth) {
-  if (stroke.points.length < 2) return;
+  if (stroke.visiblePoints < 2) return;
   ctx.beginPath();
   let connected = false;
   stroke.points.forEach(point => {
@@ -167,40 +171,84 @@ function drawMass(stroke, warmth) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = stroke.color;
-  ctx.lineWidth = PHYSICS.waxWidth + PHYSICS.massGain * warmth;
+  ctx.lineWidth = stroke.width * (1 + PHYSICS.massGain / PHYSICS.waxWidth * warmth);
   ctx.globalAlpha = .35 + warmth * .3;
   ctx.stroke();
   ctx.globalAlpha = 1;
 }
 
+function dripLength(drip, elapsed) {
+  const { y } = pointToPixels(drip.point);
+  if (drip.frozenLength !== undefined) return drip.frozenLength * height / drip.frozenHeight;
+  const seconds = Math.max(0, (elapsed - PHYSICS.meltDelayMs - drip.delay) / 1000);
+  return Math.min(PHYSICS.maxDripLength * drip.length, .5 * PHYSICS.gravity * seconds * seconds, height - y - 15);
+}
+
+function dripPosition(drip, x, y, length, t) {
+  const bend = drip.bend * (drip.frozenWidth ? width / drip.frozenWidth : 1);
+  const endX = x + bend * Math.min(1, length / 90);
+  const inverse = 1 - t;
+  return {
+    x: inverse ** 3 * x + 3 * inverse ** 2 * t * (x - bend * .2) + 3 * inverse * t ** 2 * endX + t ** 3 * endX,
+    y: inverse ** 3 * (y + 3) + 3 * inverse ** 2 * t * (y + length * .33) + 3 * inverse * t ** 2 * (y + length * .72) + t ** 3 * (y + length),
+  };
+}
+
+function traceVisibleDrip(drip, x, y, length, highlight = false) {
+  const mask = drip.cutMask;
+  const steps = mask.length - 1;
+  const last = highlight ? Math.floor(steps * .72) : steps;
+  let connected = false;
+  ctx.beginPath();
+  for (let i = 0; i <= last; i++) {
+    if (mask[i]) {
+      connected = false;
+      continue;
+    }
+    const point = dripPosition(drip, x, y, length, i / steps);
+    const px = point.x - (highlight ? drip.width * .25 : 0);
+    const py = point.y + (highlight ? 6 : 0);
+    if (connected) ctx.lineTo(px, py);
+    else ctx.moveTo(px, py);
+    connected = true;
+  }
+}
+
 function drawDrips(stroke, elapsed) {
   for (const drip of stroke.drips) {
-    if (drip.erased || drip.point.erased) continue;
-    const seconds = Math.max(0, (elapsed - PHYSICS.meltDelayMs - drip.delay) / 1000);
-    if (seconds === 0) continue;
+    if (drip.erased) continue;
     const { x, y } = pointToPixels(drip.point);
-    const length = Math.min(PHYSICS.maxDripLength * drip.length, .5 * PHYSICS.gravity * seconds * seconds, height - y - 15);
+    const length = dripLength(drip, elapsed);
     if (length <= 0) continue;
-    const endX = x + drip.bend * Math.min(1, length / 90);
+    const bend = drip.bend * (drip.frozenWidth ? width / drip.frozenWidth : 1);
+    const endX = x + bend * Math.min(1, length / 90);
 
     ctx.beginPath();
-    ctx.moveTo(x, y + 3);
-    ctx.bezierCurveTo(x - drip.bend * .2, y + length * .33, endX, y + length * .72, endX, y + length);
+    if (drip.cutMask) traceVisibleDrip(drip, x, y, length);
+    else {
+      ctx.moveTo(x, y + 3);
+      ctx.bezierCurveTo(x - bend * .2, y + length * .33, endX, y + length * .72, endX, y + length);
+    }
     ctx.strokeStyle = stroke.color;
     ctx.lineWidth = drip.width;
     ctx.lineCap = 'round';
     ctx.globalAlpha = .82;
     ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(endX, y + length, drip.width * .85, drip.width * 1.25, 0, 0, Math.PI * 2);
-    ctx.fillStyle = stroke.color;
-    ctx.fill();
+    if (!drip.cutMask?.at(-1)) {
+      ctx.beginPath();
+      ctx.ellipse(endX, y + length, drip.width * .85, drip.width * 1.25, 0, 0, Math.PI * 2);
+      ctx.fillStyle = stroke.color;
+      ctx.fill();
+    }
     ctx.globalAlpha = .23;
     ctx.strokeStyle = '#fff8e5';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x - drip.width * .2, y + 9);
-    ctx.lineTo(endX - drip.width * .25, y + length * .72);
+    if (drip.cutMask) traceVisibleDrip(drip, x, y, length, true);
+    else {
+      ctx.moveTo(x - drip.width * .2, y + 9);
+      ctx.lineTo(endX - drip.width * .25, y + length * .72);
+    }
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
@@ -265,7 +313,7 @@ function queueRender() {
 function eraseSegment(a, b) {
   const start = pointToPixels(a);
   const end = pointToPixels(b);
-  const radius = PHYSICS.eraserRadius;
+  const radius = eraserRadius;
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
@@ -298,20 +346,38 @@ function eraseSegment(a, b) {
       }
     }
     for (const drip of stroke.drips) {
-      if (drip.erased || drip.point.erased) continue;
-      const seconds = Math.max(0, (now - stroke.finishedAt - PHYSICS.meltDelayMs - drip.delay) / 1000);
+      if (drip.erased) continue;
       const { x, y } = pointToPixels(drip.point);
-      const length = Math.min(PHYSICS.maxDripLength * drip.length, .5 * PHYSICS.gravity * seconds * seconds, height - y - 15);
-      for (let offset = 0; offset <= length; offset += 10) {
-        const bend = drip.bend * Math.min(1, offset / 90);
-        if (within(x + bend, y + offset, radius + drip.width / 2)) {
-          drip.erased = true;
-          break;
+      const length = dripLength(drip, now - stroke.finishedAt);
+      if (length <= 0) {
+        if (drip.point.erased) drip.erased = true;
+        continue;
+      }
+      const reach = radius + drip.width * 1.25;
+      const bendReach = Math.abs(drip.bend) * (drip.frozenWidth ? width / drip.frozenWidth : 1) * 1.2;
+      if (Math.max(start.x, end.x) + reach < x - bendReach || Math.min(start.x, end.x) - reach > x + bendReach ||
+          Math.max(start.y, end.y) + reach < y || Math.min(start.y, end.y) - reach > y + length) continue;
+      const steps = drip.cutMask?.length - 1 || Math.max(8, Math.ceil(length / 2));
+      for (let i = 0; i <= steps; i++) {
+        if (drip.cutMask?.[i]) continue;
+        const point = dripPosition(drip, x, y, length, i / steps);
+        const reach = radius + drip.width * (i === steps ? 1.25 : .5);
+        if (within(point.x, point.y, reach)) {
+          if (!drip.cutMask) {
+            drip.frozenLength = length;
+            drip.frozenHeight = height;
+            drip.frozenWidth = width;
+            drip.cutMask = new Uint8Array(steps + 1);
+            drip.visibleSamples = steps + 1;
+          }
+          drip.cutMask[i] = 1;
+          drip.visibleSamples--;
         }
       }
+      if (drip.visibleSamples === 0) drip.erased = true;
     }
   }
-  const remaining = strokes.filter(stroke => stroke.visiblePoints > 0);
+  const remaining = strokes.filter(stroke => stroke.visiblePoints > 0 || stroke.drips.some(drip => drip.cutMask && !drip.erased));
   if (remaining.length !== strokes.length) strokes = remaining;
 }
 
@@ -334,7 +400,7 @@ canvas.addEventListener('pointerdown', event => {
     return;
   }
   currentStroke = {
-    id: strokes.length + performance.now(), color: selectedColor,
+    id: strokes.length + performance.now(), color: selectedColor, width: crayonWidth,
     points: [], drips: [], visiblePoints: 0, travel: 0, lastDripAt: -PHYSICS.dripSpacing * .3,
     finishedAt: Infinity,
   };
@@ -391,6 +457,7 @@ colors.forEach(button => button.addEventListener('click', () => {
     color.classList.toggle('selected', active);
     color.setAttribute('aria-pressed', String(active));
   });
+  updateSizeControl();
 }));
 
 eraserButton.addEventListener('click', () => {
@@ -401,6 +468,23 @@ eraserButton.addEventListener('click', () => {
     color.classList.remove('selected');
     color.setAttribute('aria-pressed', 'false');
   });
+  updateSizeControl();
+});
+
+function updateSizeControl() {
+  sizeSlider.min = erasing ? 8 : 5;
+  sizeSlider.max = erasing ? 60 : 32;
+  sizeSlider.value = erasing ? eraserRadius : crayonWidth;
+  sizeSlider.setAttribute('aria-label', erasing ? 'Eraser size' : 'Crayon size');
+  sizeControl.style.setProperty('--tool-color', erasing ? '#8b6e67' : selectedColor);
+  eraserPreview.style.width = `${eraserRadius * 2}px`;
+  eraserPreview.style.height = `${eraserRadius * 2}px`;
+}
+
+sizeSlider.addEventListener('input', () => {
+  if (erasing) eraserRadius = Number(sizeSlider.value);
+  else crayonWidth = Number(sizeSlider.value);
+  updateSizeControl();
 });
 
 clearButton.addEventListener('click', () => {
@@ -416,4 +500,5 @@ clearButton.addEventListener('click', () => {
 });
 
 resize();
+updateSizeControl();
 new ResizeObserver(resize).observe(canvas);

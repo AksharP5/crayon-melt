@@ -12,6 +12,7 @@
     <main class="paper" aria-label="Crayon drawing area">
       <canvas id="drawing" aria-label="Draw with a crayon; strokes melt after two seconds"></canvas>
       <button id="clear" class="clear" type="button">Clear</button>
+      <label class="size-control" for="size">Size <input id="size" type="range" min="5" max="32" value="13" aria-label="Crayon size" /></label>
       <div class="palette" role="group" aria-label="Drawing tools">
         <button class="crayon selected" type="button" data-color="#ed654f" aria-label="Coral" aria-pressed="true" style="--crayon:#ed654f"></button>
         <button class="crayon" type="button" data-color="#e8a646" aria-label="Marigold" aria-pressed="false" style="--crayon:#e8a646"></button>
