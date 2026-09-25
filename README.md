@@ -8,7 +8,7 @@ A small offline canvas toy. Draw with a crayon; the wax thickens and starts to d
 
 Open `index.html` in a browser, or serve this folder with `python3 -m http.server 8000` and visit `http://localhost:8000`. No build step, network request, or dependency is required.
 
-Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper, select the eraser to rub out part of a drawing, or use **Clear** to reset it. The Size slider adjusts the selected tool: crayons range from 5–32 px, eraser radius from 8–60 px. Each tool remembers its size, and existing strokes keep their width.
+Mouse, pen, and touch input use pointer events. Choose a color at the bottom of the paper, select the eraser to rub out part of a drawing, or use **Clear** to reset it. The circle under the pointer shows the selected tool's size. The Size slider adjusts the selected tool: crayons range from 5–32 px, eraser radius from 8–60 px. Each tool remembers its size, and existing strokes keep their width.
 
 ## Physics knobs
 

@@ -15,7 +15,7 @@ const status = document.querySelector('#status');
 const clearButton = document.querySelector('#clear');
 const colors = [...document.querySelectorAll('.crayon')];
 const eraserButton = document.querySelector('#eraser');
-const eraserPreview = document.querySelector('#eraser-preview');
+const brushPreview = document.querySelector('#brush-preview');
 const sizeControl = document.querySelector('.size-control');
 const sizeSlider = document.querySelector('#size');
 const ctx = canvas.getContext('2d');
@@ -271,16 +271,6 @@ function render(now) {
   for (const stroke of strokes) {
     if (stroke !== currentStroke) drawDrips(stroke, now - stroke.finishedAt);
   }
-  if (currentStroke) {
-    const { x, y } = pointToPixels(currentStroke.points.at(-1));
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#f6efdf';
-    ctx.fill();
-    ctx.strokeStyle = currentStroke.color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
   const nextStatus = !strokes.length ? 'READY TO DRAW' : melting ? 'WAX IN MOTION' : warming ? 'WARMING UP' : 'MELTED';
   if (status.textContent !== nextStatus) status.textContent = nextStatus;
 }
@@ -381,21 +371,25 @@ function eraseSegment(a, b) {
   if (remaining.length !== strokes.length) strokes = remaining;
 }
 
-function showEraser(event) {
+function showBrushPreview(event) {
   const bounds = canvas.getBoundingClientRect();
-  eraserPreview.style.left = `${event.clientX - bounds.left}px`;
-  eraserPreview.style.top = `${event.clientY - bounds.top}px`;
-  eraserPreview.style.visibility = 'visible';
+  brushPreview.style.left = `${event.clientX - bounds.left}px`;
+  brushPreview.style.top = `${event.clientY - bounds.top}px`;
+  brushPreview.style.visibility = 'visible';
 }
+
+canvas.addEventListener('pointerenter', event => {
+  if (event.pointerType !== 'touch') showBrushPreview(event);
+});
 
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0 || activePointerId !== null) return;
   activePointerId = event.pointerId;
   canvas.setPointerCapture(event.pointerId);
+  showBrushPreview(event);
   if (erasing) {
     lastErasePoint = unitPoint(event);
     eraseSegment(lastErasePoint, lastErasePoint);
-    showEraser(event);
     queueRender();
     return;
   }
@@ -411,7 +405,7 @@ canvas.addEventListener('pointerdown', event => {
 
 canvas.addEventListener('pointermove', event => {
   if (activePointerId !== null && event.pointerId !== activePointerId) return;
-  if (erasing) showEraser(event);
+  showBrushPreview(event);
   if (!currentStroke && !lastErasePoint) return;
   const samples = event.getCoalescedEvents?.();
   for (const sample of samples?.length ? samples : [event]) {
@@ -429,6 +423,7 @@ canvas.addEventListener('pointermove', event => {
 function finishStroke(event) {
   if (event.pointerId !== activePointerId) return;
   activePointerId = null;
+  if (event.pointerType === 'touch' || event.type === 'pointercancel') brushPreview.style.visibility = 'hidden';
   if (lastErasePoint) {
     lastErasePoint = null;
     render(performance.now());
@@ -444,14 +439,14 @@ function finishStroke(event) {
 canvas.addEventListener('pointerup', finishStroke);
 canvas.addEventListener('pointercancel', finishStroke);
 canvas.addEventListener('lostpointercapture', finishStroke);
-canvas.addEventListener('pointerleave', () => { eraserPreview.style.visibility = 'hidden'; });
+canvas.addEventListener('pointerleave', () => { brushPreview.style.visibility = 'hidden'; });
 
 colors.forEach(button => button.addEventListener('click', () => {
   selectedColor = button.dataset.color;
   erasing = false;
   eraserButton.classList.remove('selected');
   eraserButton.setAttribute('aria-pressed', 'false');
-  eraserPreview.style.visibility = 'hidden';
+  brushPreview.style.visibility = 'hidden';
   colors.forEach(color => {
     const active = color === button;
     color.classList.toggle('selected', active);
@@ -477,8 +472,10 @@ function updateSizeControl() {
   sizeSlider.value = erasing ? eraserRadius : crayonWidth;
   sizeSlider.setAttribute('aria-label', erasing ? 'Eraser size' : 'Crayon size');
   sizeControl.style.setProperty('--tool-color', erasing ? '#8b6e67' : selectedColor);
-  eraserPreview.style.width = `${eraserRadius * 2}px`;
-  eraserPreview.style.height = `${eraserRadius * 2}px`;
+  const diameter = erasing ? eraserRadius * 2 : (currentStroke?.width ?? crayonWidth);
+  brushPreview.style.width = `${diameter}px`;
+  brushPreview.style.height = `${diameter}px`;
+  brushPreview.style.setProperty('--preview-color', erasing ? '#766c63' : selectedColor);
 }
 
 sizeSlider.addEventListener('input', () => {
