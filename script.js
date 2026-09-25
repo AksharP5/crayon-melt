@@ -116,37 +116,47 @@ function resize() {
 function addDrip(stroke, point) {
   const index = stroke.drips.length;
   const seed = stroke.id * 19 + index * 17;
-  stroke.drips.push({
+  const drip = {
     point,
+    createdAt: point.createdAt,
     delay: hash(seed + 2) * 1250,
     length: .45 + hash(seed + 3) * .65,
     width: (3.5 + hash(seed + 4) * 4.5) * stroke.width / PHYSICS.waxWidth,
     bend: (hash(seed + 5) - .5) * 17,
-  });
+  };
+  stroke.drips.push(drip);
+  const start = drip.createdAt + PHYSICS.meltDelayMs + drip.delay;
+  if (start > stroke.meltEndAt) stroke.meltStartAt = start;
+  stroke.meltEndAt = Math.max(stroke.meltEndAt, start + PHYSICS.meltDurationMs);
+  scheduleMelt();
 }
 
 function addPoint(stroke, point) {
   const previous = stroke.points.at(-1);
   if (!previous) {
+    point.createdAt = stroke.startedAt;
     stamp(point, stroke, 0);
     stroke.points.push(point);
     stroke.visiblePoints++;
+    addDrip(stroke, point);
     return;
   }
 
   const distance = Math.hypot((point.x - previous.x) * width, (point.y - previous.y) * height);
   if (distance < 1.5) return;
   const steps = Math.ceil(distance / 8);
+  const createdAt = performance.now();
   for (let step = 1; step <= steps; step++) {
     const next = {
       x: previous.x + (point.x - previous.x) * step / steps,
       y: previous.y + (point.y - previous.y) * step / steps,
+      createdAt,
     };
     const last = stroke.points.at(-1);
     stroke.travel += distance / steps;
     drawFreshSegment(last, next, stroke, stroke.points.length);
-    if (stroke.travel - stroke.lastDripAt >= PHYSICS.dripSpacing) {
-      stroke.lastDripAt = stroke.travel;
+    if (stroke.travel - stroke.lastDripDistance >= PHYSICS.dripSpacing) {
+      stroke.lastDripDistance = stroke.travel;
       addDrip(stroke, next);
     }
     stroke.points.push(next);
@@ -154,12 +164,12 @@ function addPoint(stroke, point) {
   }
 }
 
-function drawMass(stroke, warmth) {
+function drawMass(stroke, warmth, meltCutoff) {
   if (stroke.visiblePoints < 2) return;
   ctx.beginPath();
   let connected = false;
   stroke.points.forEach(point => {
-    if (point.erased) {
+    if (point.erased || point.createdAt > meltCutoff) {
       connected = false;
       return;
     }
@@ -177,10 +187,10 @@ function drawMass(stroke, warmth) {
   ctx.globalAlpha = 1;
 }
 
-function dripLength(drip, elapsed) {
+function dripLength(drip, now) {
   const { y } = pointToPixels(drip.point);
   if (drip.frozenLength !== undefined) return drip.frozenLength * height / drip.frozenHeight;
-  const seconds = Math.max(0, (elapsed - PHYSICS.meltDelayMs - drip.delay) / 1000);
+  const seconds = Math.max(0, (now - drip.createdAt - PHYSICS.meltDelayMs - drip.delay) / 1000);
   return Math.min(PHYSICS.maxDripLength * drip.length, .5 * PHYSICS.gravity * seconds * seconds, height - y - 15);
 }
 
@@ -214,11 +224,11 @@ function traceVisibleDrip(drip, x, y, length, highlight = false) {
   }
 }
 
-function drawDrips(stroke, elapsed) {
+function drawDrips(stroke, now) {
   for (const drip of stroke.drips) {
     if (drip.erased) continue;
     const { x, y } = pointToPixels(drip.point);
-    const length = dripLength(drip, elapsed);
+    const length = dripLength(drip, now);
     if (length <= 0) continue;
     const bend = drip.bend * (drip.frozenWidth ? width / drip.frozenWidth : 1);
     const endX = x + bend * Math.min(1, length / 90);
@@ -259,17 +269,17 @@ function render(now) {
   let melting = false;
   let warming = false;
   for (const stroke of strokes) {
-    const elapsed = now - stroke.finishedAt;
+    const elapsed = now - stroke.startedAt;
     if (stroke === currentStroke || elapsed < PHYSICS.meltDelayMs) warming = true;
-    if (stroke !== currentStroke && elapsed >= PHYSICS.meltDelayMs) {
+    if (elapsed >= PHYSICS.meltDelayMs) {
       const warmth = Math.min(1, (elapsed - PHYSICS.meltDelayMs) / 1100);
-      drawMass(stroke, warmth);
-      melting ||= elapsed < PHYSICS.meltDelayMs + PHYSICS.meltDurationMs;
+      drawMass(stroke, warmth, now - PHYSICS.meltDelayMs);
+      melting ||= now >= stroke.meltStartAt && now < stroke.meltEndAt;
     }
   }
   ctx.drawImage(pigment, 0, 0, width, height);
   for (const stroke of strokes) {
-    if (stroke !== currentStroke) drawDrips(stroke, now - stroke.finishedAt);
+    drawDrips(stroke, now);
   }
   const nextStatus = !strokes.length ? 'READY TO DRAW' : melting ? 'WAX IN MOTION' : warming ? 'WARMING UP' : 'MELTED';
   if (status.textContent !== nextStatus) status.textContent = nextStatus;
@@ -278,8 +288,10 @@ function render(now) {
 function tick(now) {
   frame = 0;
   render(now);
-  if (strokes.some(stroke => stroke !== currentStroke && now - stroke.finishedAt >= PHYSICS.meltDelayMs && now - stroke.finishedAt < PHYSICS.meltDelayMs + PHYSICS.meltDurationMs)) {
+  if (strokes.some(stroke => now >= stroke.meltStartAt && now < stroke.meltEndAt)) {
     frame = requestAnimationFrame(tick);
+  } else if (!wakeTimer) {
+    scheduleMelt();
   }
 }
 
@@ -289,11 +301,14 @@ function scheduleMelt() {
   frame = 0;
   const now = performance.now();
   const next = strokes
-    .filter(stroke => stroke !== currentStroke && now - stroke.finishedAt < PHYSICS.meltDelayMs)
-    .map(stroke => stroke.finishedAt + PHYSICS.meltDelayMs - now);
-  const active = strokes.some(stroke => stroke !== currentStroke && now - stroke.finishedAt >= PHYSICS.meltDelayMs && now - stroke.finishedAt < PHYSICS.meltDelayMs + PHYSICS.meltDurationMs);
+    .filter(stroke => now < stroke.meltStartAt)
+    .map(stroke => stroke.meltStartAt - now);
+  const active = strokes.some(stroke => now >= stroke.meltStartAt && now < stroke.meltEndAt);
   if (active) frame = requestAnimationFrame(tick);
-  else if (next.length) wakeTimer = setTimeout(() => { frame = requestAnimationFrame(tick); }, Math.max(0, Math.min(...next)));
+  else if (next.length) wakeTimer = setTimeout(() => {
+    wakeTimer = 0;
+    if (!frame) frame = requestAnimationFrame(tick);
+  }, Math.max(0, Math.min(...next)));
 }
 
 function queueRender() {
@@ -338,7 +353,7 @@ function eraseSegment(a, b) {
     for (const drip of stroke.drips) {
       if (drip.erased) continue;
       const { x, y } = pointToPixels(drip.point);
-      const length = dripLength(drip, now - stroke.finishedAt);
+      const length = dripLength(drip, now);
       if (length <= 0) {
         if (drip.point.erased) drip.erased = true;
         continue;
@@ -393,10 +408,11 @@ canvas.addEventListener('pointerdown', event => {
     queueRender();
     return;
   }
+  const now = performance.now();
   currentStroke = {
-    id: strokes.length + performance.now(), color: selectedColor, width: crayonWidth,
-    points: [], drips: [], visiblePoints: 0, travel: 0, lastDripAt: -PHYSICS.dripSpacing * .3,
-    finishedAt: Infinity,
+    id: strokes.length + now, color: selectedColor, width: crayonWidth, startedAt: now,
+    meltStartAt: now + PHYSICS.meltDelayMs, meltEndAt: now + PHYSICS.meltDelayMs + PHYSICS.meltDurationMs,
+    points: [], drips: [], visiblePoints: 0, travel: 0, lastDripDistance: 0,
   };
   strokes.push(currentStroke);
   addPoint(currentStroke, unitPoint(event));
@@ -430,8 +446,6 @@ function finishStroke(event) {
     return;
   }
   if (!currentStroke) return;
-  currentStroke.finishedAt = performance.now();
-  if (!currentStroke.drips.length) addDrip(currentStroke, currentStroke.points[0]);
   currentStroke = null;
   render(performance.now());
   scheduleMelt();

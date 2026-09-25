@@ -1,6 +1,6 @@
 # Crayon melt
 
-A small offline canvas toy. Draw with a crayon; the wax thickens and starts to drip two seconds after you let go. Clear the paper and start over.
+A small offline canvas toy. Draw with a crayon; wax starts to thicken and drip about two seconds after you draw it, even while you keep drawing. Clear the paper and start over.
 
 [Try it online](https://crayon-melt.vercel.app/).
 
@@ -16,7 +16,7 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 
 | Knob | Default | Effect |
 | --- | ---: | --- |
-| `meltDelayMs` | `2000` | Pause after a stroke ends before it softens. |
+| `meltDelayMs` | `2000` | Pause after a mark is drawn before it softens. |
 | `gravity` | `58` | Downward acceleration of each drip, in px/s². |
 | `maxDripLength` | `175` | Maximum drip reach before the paper edge clamps it. |
 | `meltDurationMs` | `7800` | How long the canvas redraws while wax moves. |
@@ -25,7 +25,7 @@ Edit `PHYSICS` at the top of [`script.js`](script.js):
 | `massGain` | `9` | Extra width as the mark warms. |
 | `eraserRadius` | `30` | Default radius of the eraser brush. |
 
-Wax marks combine a translucent core with deterministic grain flakes. After the delay, each finished stroke grows a thicker body; individual drips accelerate under gravity, bend slightly, and stop at their own length or the paper edge. Erasing a drip removes only the touched section and holds its remaining wax at that length. The canvas redraws while wax moves or the user draws or erases.
+Wax marks combine a translucent core with deterministic grain flakes. Older parts of a stroke gain mass while newer parts stay fresh; each drip uses the age of its own mark, accelerates under gravity, bends slightly, and stops at its own length or the paper edge. Erasing a drip removes only the touched section and holds its remaining wax at that length. The canvas redraws while wax moves or the user draws or erases.
 
 The backing canvas is capped at three million pixels so large, high-density screens stay responsive.
 
