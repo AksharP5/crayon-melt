@@ -10,17 +10,33 @@
   </head>
   <body>
     <main class="paper" aria-label="Crayon drawing area">
-      <canvas id="drawing" aria-label="Draw with a crayon; strokes melt after two seconds"></canvas>
+      <canvas id="drawing" tabindex="0" aria-label="Draw with a crayon; strokes melt after two seconds. Select Move canvas to pan."></canvas>
       <button id="clear" class="clear" type="button">Clear</button>
-      <label class="size-control" for="size">Size <input id="size" type="range" min="5" max="32" value="13" aria-label="Crayon size" /></label>
-      <div class="palette" role="group" aria-label="Drawing tools">
-        <button class="crayon selected" type="button" data-color="#ed654f" aria-label="Coral" aria-pressed="true" style="--crayon:#ed654f"></button>
-        <button class="crayon" type="button" data-color="#e8a646" aria-label="Marigold" aria-pressed="false" style="--crayon:#e8a646"></button>
-        <button class="crayon" type="button" data-color="#7a9e74" aria-label="Sage" aria-pressed="false" style="--crayon:#7a9e74"></button>
-        <button class="crayon" type="button" data-color="#69a9b5" aria-label="Pool blue" aria-pressed="false" style="--crayon:#69a9b5"></button>
-        <button class="crayon" type="button" data-color="#a68dbb" aria-label="Lilac" aria-pressed="false" style="--crayon:#a68dbb"></button>
-        <button class="crayon" type="button" data-color="#524b54" aria-label="Charcoal" aria-pressed="false" style="--crayon:#524b54"></button>
-        <button id="eraser" class="eraser" type="button" aria-label="Eraser" aria-pressed="false" title="Eraser"><span aria-hidden="true"></span></button>
+      <div class="controls">
+        <div class="sliders">
+          <label class="size-control" for="size">Size <input id="size" type="range" min="5" max="32" value="13" aria-label="Crayon size" /></label>
+          <label class="melt-control" for="melt">Melt <input id="melt" type="range" min="0" max="100" value="50" aria-label="Melt amount" /><output id="melt-value" for="melt">50%</output></label>
+        </div>
+        <div class="tool-row">
+          <div class="palette" role="group" aria-label="Crayon colors">
+            <button class="crayon selected" type="button" data-color="#ed654f" aria-label="Coral" aria-pressed="true" style="--crayon:#ed654f"></button>
+            <button class="crayon" type="button" data-color="#d87898" aria-label="Rose" aria-pressed="false" style="--crayon:#d87898"></button>
+            <button class="crayon" type="button" data-color="#df8952" aria-label="Tangerine" aria-pressed="false" style="--crayon:#df8952"></button>
+            <button class="crayon" type="button" data-color="#e8a646" aria-label="Marigold" aria-pressed="false" style="--crayon:#e8a646"></button>
+            <button class="crayon" type="button" data-color="#c8b958" aria-label="Citron" aria-pressed="false" style="--crayon:#c8b958"></button>
+            <button class="crayon" type="button" data-color="#7a9e74" aria-label="Sage" aria-pressed="false" style="--crayon:#7a9e74"></button>
+            <button class="crayon" type="button" data-color="#4e9e91" aria-label="Teal" aria-pressed="false" style="--crayon:#4e9e91"></button>
+            <button class="crayon" type="button" data-color="#69a9b5" aria-label="Pool blue" aria-pressed="false" style="--crayon:#69a9b5"></button>
+            <button class="crayon" type="button" data-color="#657fb7" aria-label="Cobalt" aria-pressed="false" style="--crayon:#657fb7"></button>
+            <button class="crayon" type="button" data-color="#a68dbb" aria-label="Lilac" aria-pressed="false" style="--crayon:#a68dbb"></button>
+            <button class="crayon" type="button" data-color="#524b54" aria-label="Charcoal" aria-pressed="false" style="--crayon:#524b54"></button>
+          </div>
+          <div class="erasers" role="group" aria-label="Canvas tools">
+            <button class="eraser" type="button" data-tool="mark" aria-pressed="false">Erase marks</button>
+            <button class="eraser" type="button" data-tool="drip" aria-pressed="false">Erase drips</button>
+            <button id="move" class="eraser" type="button" aria-pressed="false">Move canvas</button>
+          </div>
+        </div>
       </div>
       <span id="brush-preview" aria-hidden="true"></span>
       <span id="status" class="sr-only" role="status">Ready to draw</span>

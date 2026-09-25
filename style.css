@@ -27,6 +27,8 @@ canvas {
   cursor: crosshair;
   touch-action: none;
 }
+.paper.moving canvas { cursor: grab; }
+.paper.panning canvas { cursor: grabbing; }
 
 .clear {
   position: absolute;
@@ -43,35 +45,47 @@ canvas {
 }
 .clear:hover { color: #cf6852; }
 
-.size-control {
+.controls {
   position: absolute;
-  bottom: 67px;
+  bottom: 23px;
   left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  transform: translateX(-50%);
+}
+
+.sliders {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.size-control, .melt-control {
   display: flex;
   align-items: center;
   gap: 10px;
-  transform: translateX(-50%);
   color: #716357;
   font-size: 11px;
   font-weight: bold;
   letter-spacing: .04em;
 }
-.size-control input {
+.sliders input {
   width: 120px;
   margin: 0;
   accent-color: var(--tool-color, #ed654f);
   cursor: pointer;
 }
+.melt-control output { min-width: 3ch; text-align: right; }
+.size-control input:disabled { cursor: default; }
 
-.palette {
-  position: absolute;
-  bottom: 23px;
-  left: 50%;
+.tool-row, .palette, .erasers {
   display: flex;
   align-items: center;
-  gap: 15px;
-  transform: translateX(-50%);
 }
+.tool-row { gap: 18px; }
+.palette { gap: 10px; }
+.erasers { gap: 10px; padding-left: 18px; border-left: 1px solid #a99b88; }
 
 .crayon {
   width: 23px;
@@ -85,25 +99,19 @@ canvas {
   transition: transform .16s ease;
 }
 .crayon:hover { transform: scale(1.16); }
-.palette button.selected { outline: 1px solid #66584a; outline-offset: 4px; }
+.crayon.selected { outline: 1px solid #66584a; outline-offset: 4px; }
 .eraser {
-  display: grid;
-  width: 23px;
-  height: 23px;
-  place-items: center;
-  padding: 0;
+  min-height: 27px;
+  padding: 3px 0;
   border: 0;
+  border-bottom: 1px solid transparent;
   background: transparent;
+  color: #716357;
+  font-size: 11px;
+  font-weight: bold;
   cursor: pointer;
 }
-.eraser span {
-  width: 16px;
-  height: 11px;
-  border: 1px solid #8b6e67;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #e9a99e 70%, #f1ddd0 70%);
-  transform: rotate(-35deg);
-}
+.eraser:hover, .eraser.selected { color: #51483e; border-bottom-color: currentColor; }
 #brush-preview {
   position: absolute;
   z-index: 1;
@@ -132,6 +140,10 @@ button:focus-visible { outline: 2px solid #52473d; outline-offset: 5px; }
 
 @media (max-width: 600px) {
   .clear { top: 14px; right: 18px; }
-  .size-control { bottom: 65px; }
-  .palette { bottom: 21px; gap: 14px; }
+  .controls { bottom: 20px; gap: 11px; }
+  .sliders { flex-direction: column; gap: 8px; }
+  .tool-row { flex-direction: column-reverse; gap: 12px; }
+  .palette { gap: 7px; }
+  .crayon { width: 21px; height: 21px; }
+  .erasers { gap: 15px; padding-left: 0; border-left: 0; }
 }
